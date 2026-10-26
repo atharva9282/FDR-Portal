@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: fdr-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fdr_portal
+      POSTGRES_USER: fdr_app
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - fdr_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fdr_app -d fdr_portal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  fdr_postgres_data:
