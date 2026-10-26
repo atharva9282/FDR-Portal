@@ -50,6 +50,13 @@ public class RenewalService {
             Long originalFdrId,
             RenewalCreateRequest request) {
 
+        UserAccount actor = accessService.currentUser();
+        if (actor.getRole() != UserRole.INSTITUTION
+                && actor.getRole() != UserRole.ADMIN) {
+            throw new AccessDeniedException(
+                    "Only an institution user or administrator may submit a renewal request");
+        }
+
         FdrInstrument original = fdrRepository.findById(originalFdrId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Original FDR not found: " + originalFdrId));
@@ -128,7 +135,7 @@ public class RenewalService {
         record.setOriginalFdr(original);
         record.setReplacementFdr(replacement);
         record.setStatus(RenewalRequestStatus.SUBMITTED);
-        record.setSubmittedBy(accessService.currentUser().getEmail());
+        record.setSubmittedBy(actor.getEmail());
         record.setRemarks(normalize(request.remarks()));
 
         original.setStatus(InstrumentStatus.RENEWAL_PENDING);
