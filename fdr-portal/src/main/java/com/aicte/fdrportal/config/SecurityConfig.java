@@ -150,6 +150,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/monitoring/**")
                         .hasAnyRole(
                                 "ADMIN",
+                                "INSTITUTION",
                                 "VERIFICATION_OFFICIAL",
                                 "APPROVING_AUTHORITY",
                                 "REGULATION_OFFICIAL")
