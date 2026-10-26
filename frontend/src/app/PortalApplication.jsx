@@ -546,6 +546,7 @@ function useLoad(loader, deps = []) {
   return { data, error, loading, reload, setData };
 }
 function Dashboard() {
+  const { user } = useAuth();
   const [days, setDays] = useState(30),
     {
       data: d,
@@ -725,9 +726,11 @@ function Dashboard() {
               <b>Quick actions</b>
               <span>Common tasks for this workspace</span>
             </div>
-            <Link to="/fdrs/new">
-              <Plus size={17} /> Register an FDR
-            </Link>
+            {["ADMIN", "INSTITUTION"].includes(user.role) && (
+              <Link to="/fdrs/new">
+                <Plus size={17} /> Register an FDR
+              </Link>
+            )}
             <Link to="/renewals">
               <RefreshCw size={16} /> Review renewals
             </Link>
@@ -1529,8 +1532,11 @@ function FdrDetail() {
       [id],
     ),
     { data: reviews } = useLoad(
-      () => fdrApi.reviews(id).then((r) => r.data),
-      [id],
+      () =>
+        user.role === "INSTITUTION"
+          ? Promise.resolve([])
+          : fdrApi.reviews(id).then((r) => r.data),
+      [id, user.role],
     ),
     { data: renewals } = useLoad(
       () => fdrApi.renewals(id).then((r) => r.data),
@@ -1722,7 +1728,12 @@ function FdrDetail() {
         />
       )}
       {tab === "Verification" && (
-        <VerificationDetail f={f} reviews={reviews} reload={reload} />
+        <VerificationDetail
+          f={f}
+          reviews={reviews}
+          reload={reload}
+          canViewHistory={!institutionUser}
+        />
       )}
       {tab === "Renewal history" && (
         <RenewalDetail f={f} rows={renewals} canSubmit={institutionUser} />
@@ -1746,8 +1757,8 @@ function Documents({ fdrId, docs, reload, canUpload }) {
       toast("Select a PDF, PNG, or JPEG file.", "error");
       return;
     }
-    if (file.size > 15 * 1024 * 1024) {
-      toast("Files must be 15 MB or smaller.", "error");
+    if (file.size > 10 * 1024 * 1024) {
+      toast("Files must be 10 MB or smaller.", "error");
       return;
     }
     const form = new FormData();
@@ -1817,7 +1828,7 @@ function Documents({ fdrId, docs, reload, canUpload }) {
           />
         )}
       </Panel>
-      <Panel title="Upload document" sub="PDF, PNG or JPEG · up to 15 MB">
+      <Panel title="Upload document" sub="PDF, PNG or JPEG · up to 10 MB">
         {canUpload ? (
           <>
             <div
@@ -1845,7 +1856,7 @@ function Documents({ fdrId, docs, reload, canUpload }) {
               <small>
                 {file
                   ? `${(file.size / 1024).toFixed(0)} KB selected`
-                  : "PDF, PNG or JPEG up to 15 MB"}
+                  : "PDF, PNG or JPEG up to 10 MB"}
               </small>
             </div>
             <Field label="Document category">
@@ -1889,7 +1900,7 @@ function Documents({ fdrId, docs, reload, canUpload }) {
     </div>
   );
 }
-function VerificationDetail({ f, reviews, reload }) {
+function VerificationDetail({ f, reviews, reload, canViewHistory = true }) {
   const { user } = useAuth(),
     toast = useToast(),
     [form, setForm] = useState({
@@ -1928,7 +1939,13 @@ function VerificationDetail({ f, reviews, reload }) {
         title="Verification history"
         sub="Internal review and independent confirmation are separate stages"
       >
-        {reviews?.length ? (
+        {!canViewHistory ? (
+          <Empty
+            icon={Shield}
+            title="Internal review history"
+            text="Detailed reviewer notes are restricted to authorized regulatory roles. The current verification status and summary remarks remain visible in the instrument overview."
+          />
+        ) : reviews?.length ? (
           <Timeline rows={reviews} />
         ) : (
           <Empty
@@ -2842,7 +2859,6 @@ function UsersPage() {
                   "VERIFICATION_OFFICIAL",
                   "APPROVING_AUTHORITY",
                   "REGULATION_OFFICIAL",
-                  "ADMIN",
                 ].map((x) => (
                   <option key={x}>{x}</option>
                 ))}

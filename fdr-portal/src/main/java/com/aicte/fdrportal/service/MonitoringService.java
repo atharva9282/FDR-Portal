@@ -27,16 +27,19 @@ public class MonitoringService {
 
     private final FdrInstrumentRepository fdrRepository;
     private final NotificationRepository notificationRepository;
+    private final InstitutionAccessService accessService;
     private final int expiringSoonDays;
 
     public MonitoringService(
             FdrInstrumentRepository fdrRepository,
             NotificationRepository notificationRepository,
+            InstitutionAccessService accessService,
             @Value("${app.monitoring.expiring-soon-days:30}")
             int expiringSoonDays) {
 
         this.fdrRepository = fdrRepository;
         this.notificationRepository = notificationRepository;
+        this.accessService = accessService;
         this.expiringSoonDays = expiringSoonDays;
     }
 
@@ -48,7 +51,7 @@ public class MonitoringService {
         LocalDate today = LocalDate.now(BUSINESS_ZONE);
         LocalDate windowEnd = today.plusDays(windowDays);
 
-        List<FdrInstrument> instruments = fdrRepository.findAll();
+        List<FdrInstrument> instruments = findAuthorizedInstruments();
 
         long active = instruments.stream()
                 .filter(fdr -> fdr.getStatus() == InstrumentStatus.ACTIVE)
@@ -94,7 +97,7 @@ public class MonitoringService {
                 released,
                 pendingVerification,
                 discrepancies,
-                notificationRepository.countByReadFalse()
+                countUnreadNotifications()
         );
     }
 
@@ -106,7 +109,7 @@ public class MonitoringService {
         LocalDate today = LocalDate.now(BUSINESS_ZONE);
         LocalDate latestDate = today.plusDays(withinDays);
 
-        return fdrRepository.findAll().stream()
+        return findAuthorizedInstruments().stream()
                 .filter(fdr -> !isTerminal(fdr.getStatus()))
                 .filter(fdr -> !fdr.getMaturityDate().isAfter(latestDate))
                 .sorted(Comparator.comparing(
@@ -147,6 +150,20 @@ public class MonitoringService {
                 fdr.getStatus(),
                 fdr.getVerificationStatus()
         );
+    }
+
+    private List<FdrInstrument> findAuthorizedInstruments() {
+        Long institutionId = accessService.institutionScopeOrNull();
+        return institutionId == null
+                ? fdrRepository.findAll()
+                : fdrRepository.findAllByInstitution_Id(institutionId);
+    }
+
+    private long countUnreadNotifications() {
+        Long institutionId = accessService.institutionScopeOrNull();
+        return institutionId == null
+                ? notificationRepository.countByReadFalse()
+                : notificationRepository.countByFdr_Institution_IdAndReadFalse(institutionId);
     }
 
     private boolean isVerificationPending(

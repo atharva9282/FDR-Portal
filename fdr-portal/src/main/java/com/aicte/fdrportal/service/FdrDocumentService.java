@@ -5,11 +5,13 @@ import com.aicte.fdrportal.dto.FdrDocumentResponse;
 import com.aicte.fdrportal.entity.FdrDocument;
 import com.aicte.fdrportal.entity.FdrInstrument;
 import com.aicte.fdrportal.enums.DocumentType;
+import com.aicte.fdrportal.enums.UserRole;
 import com.aicte.fdrportal.exception.ResourceNotFoundException;
 import com.aicte.fdrportal.repository.FdrDocumentRepository;
 import com.aicte.fdrportal.repository.FdrInstrumentRepository;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,6 +55,12 @@ public class FdrDocumentService {
     @Transactional
     public FdrDocumentResponse upload(Long fdrId, DocumentType documentType, MultipartFile file)
     {
+        var actor = institutionAccessService.currentUser();
+        if (actor.getRole() != UserRole.ADMIN
+                && actor.getRole() != UserRole.INSTITUTION) {
+            throw new AccessDeniedException(
+                    "Only an institution user or administrator may upload documents");
+        }
 
         if (documentType == null) {
             throw new IllegalArgumentException(

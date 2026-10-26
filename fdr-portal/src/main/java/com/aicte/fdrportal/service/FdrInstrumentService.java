@@ -5,12 +5,14 @@ import com.aicte.fdrportal.dto.FdrResponse;
 import com.aicte.fdrportal.entity.FdrInstrument;
 import com.aicte.fdrportal.entity.Institution;
 import com.aicte.fdrportal.enums.InstrumentStatus;
+import com.aicte.fdrportal.enums.UserRole;
 import com.aicte.fdrportal.exception.ConflictException;
 import com.aicte.fdrportal.exception.ResourceNotFoundException;
 import com.aicte.fdrportal.repository.FdrInstrumentRepository;
 import com.aicte.fdrportal.repository.InstitutionRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +31,13 @@ public class FdrInstrumentService {
 
     @Transactional
     public FdrResponse create(FdrCreateRequest request) {
+
+        var actor = institutionAccessService.currentUser();
+        if (actor.getRole() != UserRole.ADMIN
+                && actor.getRole() != UserRole.INSTITUTION) {
+            throw new AccessDeniedException(
+                    "Only an institution user or administrator may register an FDR");
+        }
 
         if (!request.maturityDate().isAfter(request.issueDate())) {
             throw new IllegalArgumentException(
