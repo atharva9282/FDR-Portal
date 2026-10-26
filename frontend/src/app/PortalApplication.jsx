@@ -546,6 +546,7 @@ function useLoad(loader, deps = []) {
   return { data, error, loading, reload, setData };
 }
 function Dashboard() {
+  const { user } = useAuth();
   const [days, setDays] = useState(30),
     {
       data: d,
@@ -725,9 +726,11 @@ function Dashboard() {
               <b>Quick actions</b>
               <span>Common tasks for this workspace</span>
             </div>
-            <Link to="/fdrs/new">
-              <Plus size={17} /> Register an FDR
-            </Link>
+            {["ADMIN", "INSTITUTION"].includes(user.role) && (
+              <Link to="/fdrs/new">
+                <Plus size={17} /> Register an FDR
+              </Link>
+            )}
             <Link to="/renewals">
               <RefreshCw size={16} /> Review renewals
             </Link>
