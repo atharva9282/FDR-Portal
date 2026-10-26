@@ -180,6 +180,18 @@ public class SecurityConfig {
                                 "APPROVING_AUTHORITY",
                                 "REGULATION_OFFICIAL")
 
+                        .requestMatchers(HttpMethod.POST, "/api/fdrs")
+                        .hasAnyRole("ADMIN", "INSTITUTION")
+
+                        .requestMatchers(HttpMethod.POST, "/api/fdrs/*/documents")
+                        .hasAnyRole("ADMIN", "INSTITUTION")
+
+                        .requestMatchers(HttpMethod.POST, "/api/fdrs/*/renewals")
+                        .hasAnyRole("ADMIN", "INSTITUTION")
+
+                        .requestMatchers(HttpMethod.POST, "/api/fdrs/*/release-requests")
+                        .hasAnyRole("ADMIN", "INSTITUTION")
+
                         .requestMatchers("/api/fdrs/**")
                         .hasAnyRole(
                                 "ADMIN",
