@@ -14,5 +14,15 @@ public interface NotificationRepository
 
     List<Notification> findByReadFalseOrderByCreatedAtDesc();
 
+    List<Notification> findAllByFdr_Institution_IdOrderByCreatedAtDesc(
+            Long institutionId
+    );
+
+    List<Notification> findByFdr_Institution_IdAndReadFalseOrderByCreatedAtDesc(
+            Long institutionId
+    );
+
     long countByReadFalse();
+
+    long countByFdr_Institution_IdAndReadFalse(Long institutionId);
 }
