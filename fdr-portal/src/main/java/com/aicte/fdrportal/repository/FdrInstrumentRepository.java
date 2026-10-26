@@ -15,6 +15,8 @@ public interface FdrInstrumentRepository extends JpaRepository<FdrInstrument, Lo
 
     Page<FdrInstrument> findByInstitution_Id(Long institutionId, Pageable pageable);
 
+    List<FdrInstrument> findAllByInstitution_Id(Long institutionId);
+
     Page<FdrInstrument> findByStatus(InstrumentStatus status, Pageable pageable);
 
     Page<FdrInstrument> findByInstitution_IdAndStatus(
