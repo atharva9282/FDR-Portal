@@ -4,7 +4,6 @@ import com.aicte.fdrportal.dto.NotificationResponse;
 import com.aicte.fdrportal.entity.Notification;
 import com.aicte.fdrportal.exception.ResourceNotFoundException;
 import com.aicte.fdrportal.repository.NotificationRepository;
-import com.aicte.fdrportal.service.InstitutionAccessService;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
