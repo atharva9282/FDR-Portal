@@ -8,7 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 public interface FdrInstrumentRepository extends JpaRepository<FdrInstrument, Long> {
@@ -26,6 +26,8 @@ public interface FdrInstrumentRepository extends JpaRepository<FdrInstrument, Lo
     );
 
     List<FdrInstrument> findByMaturityDateBetween(LocalDate startDate, LocalDate endDate);
+
+    List<FdrInstrument> findBySubmittedAtBetween(Instant startTime, Instant endTime);
 
     List<FdrInstrument> findByVerificationStatus(VerificationStatus verificationStatus);
 
