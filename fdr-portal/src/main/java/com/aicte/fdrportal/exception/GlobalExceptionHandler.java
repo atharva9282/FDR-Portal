@@ -1,5 +1,8 @@
 package com.aicte.fdrportal.exception;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -58,6 +61,26 @@ public class GlobalExceptionHandler {
                                 (first, second) -> first,
                                 LinkedHashMap::new
                         ));
+
+        return build(
+                HttpStatus.BAD_REQUEST,
+                "Request validation failed",
+                errors
+        );
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiError> handleConstraintViolation(
+            ConstraintViolationException ex) {
+
+        Map<String, String> errors = ex.getConstraintViolations()
+                .stream()
+                .collect(Collectors.toMap(
+                        violation -> violation.getPropertyPath().toString(),
+                        ConstraintViolation::getMessage,
+                        (first, second) -> first,
+                        LinkedHashMap::new
+                ));
 
         return build(
                 HttpStatus.BAD_REQUEST,
