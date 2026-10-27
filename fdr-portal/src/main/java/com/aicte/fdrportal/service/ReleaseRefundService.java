@@ -28,15 +28,18 @@ public class ReleaseRefundService {
     private final FdrInstrumentRepository fdrRepository;
     private final ReleaseRefundRequestRepository requestRepository;
     private final InstitutionAccessService accessService;
+    private final AuditEventService auditEventService;
 
     public ReleaseRefundService(
             FdrInstrumentRepository fdrRepository,
             ReleaseRefundRequestRepository requestRepository,
-            InstitutionAccessService accessService) {
+            InstitutionAccessService accessService,
+            AuditEventService auditEventService) {
 
         this.fdrRepository = fdrRepository;
         this.requestRepository = requestRepository;
         this.accessService = accessService;
+        this.auditEventService = auditEventService;
     }
 
     @Transactional
@@ -97,7 +100,11 @@ public class ReleaseRefundService {
         fdr.setStatus(InstrumentStatus.RELEASE_REQUESTED);
         fdrRepository.save(fdr);
 
-        return toResponse(requestRepository.save(entity));
+        ReleaseRefundRequest saved = requestRepository.save(entity);
+        auditEventService.recordSuccess(
+                "RELEASE_REQUEST_SUBMITTED", "RELEASE_REQUEST", saved.getId(),
+                "fdrId=" + fdr.getId());
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -214,7 +221,14 @@ public class ReleaseRefundService {
             fdrRepository.save(request.getFdr());
         }
 
-        return toResponse(requestRepository.save(request));
+        ReleaseRefundRequest saved = requestRepository.save(request);
+        auditEventService.recordSuccess(
+                "RELEASE_REQUEST_REVIEWED", "RELEASE_REQUEST", saved.getId(),
+                "fdrId=" + saved.getFdr().getId()
+                        + "; status=" + saved.getStatus()
+                        + "; completionReferencePresent="
+                        + (saved.getCompletionReference() != null));
+        return toResponse(saved);
     }
 
     private void requireRole(
