@@ -208,6 +208,20 @@ public class RenewalService {
             }
         }
 
+        // Validate the replacement document before mutating the managed request.
+        // This keeps the record unchanged when approval must be rejected.
+        if (target == RenewalRequestStatus.APPROVED) {
+            boolean documentUploaded =
+                    documentRepository.existsByFdr_IdAndDocumentType(
+                            record.getReplacementFdr().getId(),
+                            DocumentType.RENEWAL_REPLACEMENT);
+
+            if (!documentUploaded) {
+                throw new ConflictException(
+                        "Upload the replacement FDR document before approving renewal");
+            }
+        }
+
         record.setStatus(target);
         record.setReviewedBy(actor.getEmail());
         record.setRemarks(request.remarks().trim());
@@ -216,16 +230,6 @@ public class RenewalService {
         FdrInstrument replacement = record.getReplacementFdr();
 
         if (target == RenewalRequestStatus.APPROVED) {
-
-            boolean documentUploaded =
-                    documentRepository.existsByFdr_IdAndDocumentType(
-                            replacement.getId(),
-                            DocumentType.RENEWAL_REPLACEMENT);
-
-            if (!documentUploaded) {
-                throw new ConflictException(
-                        "Upload the replacement FDR document before approving renewal");
-            }
 
             original.setStatus(InstrumentStatus.RENEWED);
 
