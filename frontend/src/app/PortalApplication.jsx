@@ -507,7 +507,14 @@ function Shell() {
             <Route path="/renewals" element={<Workflow kind="renewal" />} />
             <Route path="/releases" element={<Workflow kind="release" />} />
             <Route path="/users" element={<UsersPage />} />
-            <Route path="/reports" element={<Reports />} />
+            <Route
+              path="/reports"
+              element={
+                <Protected roles={["ADMIN", "REGULATION_OFFICIAL"]}>
+                  <Reports />
+                </Protected>
+              }
+            />
             <Route path="*" element={<Dashboard />} />
           </Routes>
         </main>
@@ -2939,36 +2946,196 @@ function CheckCircleIcon() {
   );
 }
 function Reports() {
+  const year = new Date().getFullYear();
+  const [from, setFrom] = useState(`${year}-01-01`);
+  const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
+  const [exporting, setExporting] = useState(false);
+  const toast = useToast();
+  const {
+    data: summary,
+    error,
+    loading,
+    reload,
+  } = useLoad(
+    () => api.get("/reports/summary", { params: { from, to } }).then((r) => r.data),
+    [from, to],
+  );
+  const {
+    data: auditPage,
+    error: auditError,
+    loading: auditLoading,
+    reload: reloadAudit,
+  } = useLoad(
+    () => api.get("/audit-events", {
+      params: { from, to, page: 0, size: 12, sort: "occurredAt,desc" },
+    }).then((r) => r.data),
+    [from, to],
+  );
+
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const response = await api.get("/reports/fdrs.csv", {
+        params: { from, to },
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: "text/csv;charset=utf-8;" }),
+      );
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `fdr-report-${from}-to-${to}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+      toast("CSV report downloaded");
+    } catch (e) {
+      toast(message(e), "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const cards = summary
+    ? [
+        ["Records submitted", summary.recordsSubmittedInPeriod, ClipboardList, "blue"],
+        ["Submitted deposit total", money(summary.submittedDepositTotal), WalletCards, "green"],
+        ["Pending verification", summary.pendingVerifications, FileCheck2, "violet"],
+        ["Discrepancy cases", summary.discrepancyCases, AlertTriangle, "red"],
+        ["Active records", summary.activeRecords, ShieldCheck, "green"],
+        ["Renewal pending", summary.renewalPendingRecords, RefreshCw, "violet"],
+        ["Release requested", summary.releaseRequestedRecords, ArrowDownToLine, "amber"],
+        ["Maturing in period", summary.maturityDatesInPeriod, CalendarDays, "teal"],
+      ]
+    : [];
+
   return (
     <>
       <Header
         eyebrow="GOVERNANCE"
         title="Reports & audit trail"
-        description="Reporting and administrative history are not yet exposed by this backend."
+        description="Review FDR submissions for a date range, export the register, and inspect recorded administrative activity."
+        action={
+          <button
+            className="btn primary"
+            onClick={exportCsv}
+            disabled={exporting || !from || !to || from > to}
+          >
+            <Download size={16} />
+            {exporting ? "Exporting…" : "Export FDR CSV"}
+          </button>
+        }
       />
-      <div className="unavailable-card">
-        <span>
-          <ClipboardList size={25} />
-        </span>
-        <div className="eyebrow">NOT CONNECTED</div>
-        <h2>Reporting endpoint required</h2>
-        <p>
-          The current API does not provide report exports, audit event queries,
-          or a comprehensive administrative action log. This screen
-          intentionally displays no fabricated results.
-        </p>
-        <div className="endpoint-box">
-          <b>Suggested backend contract</b>
-          <code>
-            GET /api/reports/summary?from=YYYY-MM-DD&amp;to=YYYY-MM-DD
-          </code>
-          <code>GET /api/audit-events?page=0&amp;size=25</code>
-          <small>
-            Audit response should include actor, role, action, target record,
-            timestamp and outcome.
-          </small>
-        </div>
+      <div className="filter-bar report-filter-bar">
+        <label className="report-date-field">
+          <span>From date</span>
+          <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
+        </label>
+        <label className="report-date-field">
+          <span>To date</span>
+          <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
+        </label>
+        <button className="btn ghost" onClick={() => { reload(); reloadAudit(); }} disabled={loading || auditLoading}>
+          <RefreshCw size={15} /> Refresh data
+        </button>
       </div>
+
+      {error ? (
+        <ErrorBox error={error} retry={reload} />
+      ) : (
+        <>
+          <Panel
+            title="Submission-period summary"
+            sub={`Records submitted from ${from} through ${to}. Status counts reflect each record's current state.`}
+          >
+            {loading ? (
+              <Loading />
+            ) : summary ? (
+              <>
+                <div className="metric-grid">
+                  {cards.map(([label, value, Icon, tone]) => (
+                    <div className="metric-card" key={label}>
+                      <div className={`metric-icon ${tone}`}><Icon size={18} /></div>
+                      <span>{label}</span>
+                      <b>{value ?? 0}</b>
+                      <small>{label === "Submitted deposit total" ? "Sum of submitted FDR amounts" : "Live backend calculation"}</small>
+                    </div>
+                  ))}
+                </div>
+                <div className="report-status-table table-scroll">
+                  <table>
+                    <thead>
+                      <tr><th>Current status</th><th>Records in selected submission period</th></tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(summary.currentStatusBreakdown || {}).map(([status, count]) => (
+                        <tr key={status}>
+                          <td><Status value={status} /></td>
+                          <td>{count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <Empty icon={ClipboardList} title="No summary available" text="Choose a valid date range and refresh the report." />
+            )}
+          </Panel>
+
+          <Panel
+            title="Recent audit events"
+            sub="Audit entries are recorded for successful workflow actions and handled API failures."
+          >
+            {auditError ? (
+              <ErrorBox error={auditError} retry={reloadAudit} />
+            ) : auditLoading ? (
+              <Loading />
+            ) : auditPage?.content?.length ? (
+              <>
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>WHEN</th>
+                        <th>ACTOR</th>
+                        <th>ACTION</th>
+                        <th>TARGET</th>
+                        <th>RESULT</th>
+                        <th>DETAILS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {auditPage.content.map((event) => (
+                        <tr key={event.id}>
+                          <td>{new Date(event.occurredAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
+                          <td>{event.actorEmail}<small>{roleLabel(event.actorRole)}</small></td>
+                          <td><b>{event.action}</b></td>
+                          <td>{event.targetType}{event.targetId ? <small>#{event.targetId}</small> : null}</td>
+                          <td><Status value={event.outcome} /></td>
+                          <td>{event.details || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <PageControls
+                  page={auditPage.number || 0}
+                  totalPages={auditPage.totalPages || 1}
+                  onPage={(nextPage) => {
+                    api.get("/audit-events", {
+                      params: { from, to, page: nextPage, size: 12, sort: "occurredAt,desc" },
+                    }).then((r) => {}).catch((e) => toast(message(e), "error"));
+                  }}
+                />
+              </>
+            ) : (
+              <Empty icon={ClipboardList} title="No audit events in this range" text="Workflow actions and rejected requests will appear here when recorded." />
+            )}
+          </Panel>
+        </>
+      )}
     </>
   );
 }
