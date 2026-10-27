@@ -15,12 +15,15 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final InstitutionAccessService accessService;
+    private final AuditEventService auditEventService;
 
     public NotificationService(
             NotificationRepository notificationRepository,
-            InstitutionAccessService accessService) {
+            InstitutionAccessService accessService,
+            AuditEventService auditEventService) {
         this.notificationRepository = notificationRepository;
         this.accessService = accessService;
+        this.auditEventService = auditEventService;
     }
 
     @Transactional(readOnly = true)
@@ -58,8 +61,11 @@ public class NotificationService {
         accessService.assertCanAccessFdr(notification.getFdr());
 
         notification.markAsRead();
-
-        return toResponse(notificationRepository.save(notification));
+        Notification saved = notificationRepository.save(notification);
+        auditEventService.recordSuccess(
+                "NOTIFICATION_MARKED_READ", "NOTIFICATION", saved.getId(),
+                "fdrId=" + saved.getFdr().getId());
+        return toResponse(saved);
     }
 
     private NotificationResponse toResponse(
