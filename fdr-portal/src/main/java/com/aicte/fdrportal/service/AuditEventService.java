@@ -18,6 +18,11 @@ import java.time.Instant;
 @Service
 public class AuditEventService {
 
+    private static final Instant EARLIEST_AUDIT_TIME =
+            Instant.parse("0001-01-01T00:00:00Z");
+    private static final Instant LATEST_AUDIT_TIME =
+            Instant.parse("9999-12-31T23:59:59.999999Z");
+
     private final AuditEventRepository auditRepository;
 
     public AuditEventService(AuditEventRepository auditRepository) {
@@ -58,9 +63,16 @@ public class AuditEventService {
             String action,
             String targetType,
             Pageable pageable) {
+        Instant effectiveFrom = fromTime == null
+                ? EARLIEST_AUDIT_TIME
+                : fromTime;
+        Instant effectiveTo = toTime == null
+                ? LATEST_AUDIT_TIME
+                : toTime;
+
         return auditRepository.search(
-                        fromTime,
-                        toTime,
+                        effectiveFrom,
+                        effectiveTo,
                         normalize(actorEmail),
                         normalize(action),
                         normalize(targetType),
