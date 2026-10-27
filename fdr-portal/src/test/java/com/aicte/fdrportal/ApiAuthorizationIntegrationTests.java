@@ -13,7 +13,6 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
@@ -80,6 +79,15 @@ class ApiAuthorizationIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalInstruments").value(0))
                 .andExpect(jsonPath("$.unreadNotifications").value(0));
+    }
+
+    @Test
+    void approvingAuthorityCannotRegisterAnFdr() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/fdrs")
+                        .with(jwt().jwt(token -> token.subject("approver@example.test"))
+                                .authorities(new SimpleGrantedAuthority("ROLE_APPROVING_AUTHORITY"))))
+                .andExpect(status().isForbidden());
     }
 
     @Test
