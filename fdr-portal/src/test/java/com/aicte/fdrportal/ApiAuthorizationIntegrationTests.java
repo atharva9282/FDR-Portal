@@ -180,6 +180,32 @@ class ApiAuthorizationIntegrationTests {
     }
 
     @Test
+    void institutionCannotReadAnotherInstitutionsFdr() throws Exception {
+        String fdrId = createFdr(uniqueReference());
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        Institution otherInstitution = new Institution();
+        otherInstitution.setInstitutionCode("OTHER-" + suffix);
+        otherInstitution.setName("Other institution " + suffix);
+        otherInstitution = institutionRepository.saveAndFlush(otherInstitution);
+
+        String otherEmail = "other-" + suffix + "@example.test";
+        UserAccount otherAccount = new UserAccount();
+        otherAccount.setEmail(otherEmail);
+        otherAccount.setPasswordHash("not-used-in-mock-jwt-test");
+        otherAccount.setRole(UserRole.INSTITUTION);
+        otherAccount.setInstitution(otherInstitution);
+        otherAccount.setEnabled(true);
+        userRepository.saveAndFlush(otherAccount);
+
+        mockMvc.perform(get("/api/fdrs/{fdrId}", fdrId)
+                        .with(jwt()
+                                .jwt(token -> token.subject(otherEmail))
+                                .authorities(new SimpleGrantedAuthority("ROLE_INSTITUTION"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403));
+    }
+
+    @Test
     void missingFdrReturnsNotFound() throws Exception {
         mockMvc.perform(get("/api/fdrs/999999999")
                         .with(institutionJwt()))
