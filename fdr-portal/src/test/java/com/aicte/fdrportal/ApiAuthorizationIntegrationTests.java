@@ -410,8 +410,9 @@ class ApiAuthorizationIntegrationTests {
         String renewalLocation = submitted.getResponse().getHeader("Location");
         org.junit.jupiter.api.Assertions.assertNotNull(renewalLocation);
         String renewalId = renewalLocation.substring(renewalLocation.lastIndexOf('/') + 1);
-        String replacementFdrId = String.valueOf(
-                JsonPath.read(submitted.getResponse().getContentAsString(), "$.replacementFdrId"));
+        Object replacementFdrIdValue = JsonPath.read(
+                submitted.getResponse().getContentAsString(), "$.replacementFdrId");
+        String replacementFdrId = String.valueOf(replacementFdrIdValue);
 
         mockMvc.perform(patch("/api/renewals/{renewalId}/review", renewalId)
                         .contentType(MediaType.APPLICATION_JSON)
