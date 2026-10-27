@@ -3,6 +3,7 @@ package com.aicte.fdrportal.controller;
 import com.aicte.fdrportal.dto.AuditEventResponse;
 import com.aicte.fdrportal.service.AuditEventService;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -40,6 +41,10 @@ public class AuditEventController {
         if (from != null && to != null && from.isAfter(to)) {
             throw new IllegalArgumentException(
                     "'from' date must be on or before 'to' date");
+        }
+        if (pageable.getPageSize() > 100) {
+            throw new IllegalArgumentException(
+                    "Audit page size cannot exceed 100 records");
         }
 
         Instant fromTime = from == null
