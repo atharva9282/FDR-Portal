@@ -22,11 +22,17 @@ public class FdrInstrumentService {
     private final FdrInstrumentRepository fdrRepository;
     private final InstitutionRepository institutionRepository;
     private final InstitutionAccessService institutionAccessService;
+    private final AuditEventService auditEventService;
 
-    public FdrInstrumentService(FdrInstrumentRepository fdrRepository, InstitutionRepository institutionRepository, InstitutionAccessService institutionAccessService) {
+    public FdrInstrumentService(
+            FdrInstrumentRepository fdrRepository,
+            InstitutionRepository institutionRepository,
+            InstitutionAccessService institutionAccessService,
+            AuditEventService auditEventService) {
         this.fdrRepository = fdrRepository;
         this.institutionRepository = institutionRepository;
         this.institutionAccessService = institutionAccessService;
+        this.auditEventService = auditEventService;
     }
 
     @Transactional
@@ -82,7 +88,11 @@ public class FdrInstrumentService {
         // Client requests cannot directly set verification outcomes.
         fdr.setStatus(InstrumentStatus.SUBMITTED);
 
-        return toResponse(fdrRepository.save(fdr));
+        FdrInstrument saved = fdrRepository.save(fdr);
+        auditEventService.recordSuccess(
+                "FDR_CREATED", "FDR", saved.getId(),
+                "institutionId=" + saved.getInstitution().getId());
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)

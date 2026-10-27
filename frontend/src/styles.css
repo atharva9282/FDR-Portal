@@ -206,3 +206,11 @@ body { font-size: 16px; line-height: var(--type-line-body); }
   .tabs { gap: 4px; margin-inline: -2px; }
   .tabs button { min-height: 46px; padding-inline: 9px; }
 }
+
+
+/* Date filters used by the Reports & audit workspace */
+.report-filter-bar{align-items:flex-end}
+.report-date-field{display:flex;flex-direction:column;gap:5px;color:#728096;font-size:10px;font-weight:600}
+.report-date-field input{height:36px;min-width:155px;padding:0 9px;border:1px solid #e3e8ef;border-radius:6px;background:#fff;color:#405069;font:500 11px Inter,system-ui,sans-serif}
+.report-status-table{margin-top:18px}
+.report-status-table table{max-width:650px}

@@ -23,14 +23,17 @@ public class UserProvisioningService {
     private final UserAccountRepository userRepository;
     private final InstitutionRepository institutionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditEventService auditEventService;
 
     public UserProvisioningService(
             UserAccountRepository userRepository,
             InstitutionRepository institutionRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            AuditEventService auditEventService) {
         this.userRepository = userRepository;
         this.institutionRepository = institutionRepository;
         this.passwordEncoder = passwordEncoder;
+        this.auditEventService = auditEventService;
     }
 
     @Transactional
@@ -88,7 +91,13 @@ public class UserProvisioningService {
         user.setInstitution(institution);
         user.setEnabled(true);
 
-        return toProfile(userRepository.save(user));
+        UserAccount saved = userRepository.save(user);
+        auditEventService.recordSuccess(
+                "USER_CREATED", "USER_ACCOUNT", saved.getId(),
+                "role=" + saved.getRole()
+                        + "; institutionId="
+                        + (institution == null ? "none" : institution.getId()));
+        return toProfile(saved);
     }
 
     @Transactional(readOnly = true)

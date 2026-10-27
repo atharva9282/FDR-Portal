@@ -1,0 +1,31 @@
+package com.aicte.fdrportal.repository;
+
+import com.aicte.fdrportal.entity.AuditEvent;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.Instant;
+
+public interface AuditEventRepository extends JpaRepository<AuditEvent, Long> {
+
+    @Query("""
+            select event
+            from AuditEvent event
+            where event.occurredAt >= :fromTime
+              and event.occurredAt <= :toTime
+              and (:actorEmail = '' or lower(event.actorEmail) like lower(concat('%', :actorEmail, '%')))
+              and (:action = '' or lower(event.action) like lower(concat('%', :action, '%')))
+              and (:targetType = '' or lower(event.targetType) like lower(concat('%', :targetType, '%')))
+            """)
+    Page<AuditEvent> search(
+            @Param("fromTime") Instant fromTime,
+            @Param("toTime") Instant toTime,
+            @Param("actorEmail") String actorEmail,
+            @Param("action") String action,
+            @Param("targetType") String targetType,
+            Pageable pageable
+    );
+}

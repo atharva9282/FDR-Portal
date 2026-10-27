@@ -37,16 +37,20 @@ public class FdrDocumentService {
     private final FdrDocumentRepository documentRepository;
     private final FdrInstrumentRepository fdrRepository;
     private final InstitutionAccessService institutionAccessService;
+    private final AuditEventService auditEventService;
     private final Path storageRoot;
 
     public FdrDocumentService(
             FdrDocumentRepository documentRepository,
-            FdrInstrumentRepository fdrRepository, InstitutionAccessService institutionAccessService,
+            FdrInstrumentRepository fdrRepository,
+            InstitutionAccessService institutionAccessService,
+            AuditEventService auditEventService,
             @Value("${app.storage.upload-dir}") String uploadDir) {
 
         this.documentRepository = documentRepository;
         this.fdrRepository = fdrRepository;
         this.institutionAccessService = institutionAccessService;
+        this.auditEventService = auditEventService;
         this.storageRoot = Paths.get(uploadDir)
                 .toAbsolutePath()
                 .normalize();
@@ -124,6 +128,11 @@ public class FdrDocumentService {
 
             try {
                 FdrDocument saved = documentRepository.save(document);
+                auditEventService.recordSuccess(
+                        "FDR_DOCUMENT_UPLOADED", "FDR_DOCUMENT", saved.getId(),
+                        "fdrId=" + fdr.getId()
+                                + "; documentType=" + saved.getDocumentType()
+                                + "; sizeBytes=" + saved.getSizeBytes());
                 return toResponse(saved);
             } catch (RuntimeException ex) {
                 // Avoid leaving a file behind if its DB record

@@ -23,13 +23,17 @@ public class VerificationReviewService {
     private final FdrInstrumentRepository fdrRepository;
     private final VerificationReviewRepository reviewRepository;
     private final InstitutionAccessService institutionAccessService;
+    private final AuditEventService auditEventService;
 
     public VerificationReviewService(
             FdrInstrumentRepository fdrRepository,
-            VerificationReviewRepository reviewRepository, InstitutionAccessService institutionAccessService) {
+            VerificationReviewRepository reviewRepository,
+            InstitutionAccessService institutionAccessService,
+            AuditEventService auditEventService) {
         this.fdrRepository = fdrRepository;
         this.reviewRepository = reviewRepository;
         this.institutionAccessService = institutionAccessService;
+        this.auditEventService = auditEventService;
     }
 
     @Transactional
@@ -41,6 +45,7 @@ public class VerificationReviewService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "FDR not found with ID: " + fdrId));
 
+        institutionAccessService.assertCanAccessFdr(fdr);
         validateReview(request);
 
         VerificationReview review = new VerificationReview();
@@ -58,8 +63,12 @@ public class VerificationReviewService {
         // Both changes are saved in the same transaction.
         fdrRepository.save(fdr);
 
-        VerificationReview savedReview =
-                reviewRepository.save(review);
+        VerificationReview savedReview = reviewRepository.save(review);
+        auditEventService.recordSuccess(
+                "VERIFICATION_REVIEW_RECORDED", "FDR", fdr.getId(),
+                "outcome=" + savedReview.getOutcome()
+                        + "; method=" + savedReview.getVerificationMethod()
+                        + "; reviewId=" + savedReview.getId());
 
         return toResponse(savedReview);
     }
@@ -68,10 +77,11 @@ public class VerificationReviewService {
     public List<VerificationReviewResponse> findByFdrId(
             Long fdrId) {
 
-        if (!fdrRepository.existsById(fdrId)) {
-            throw new ResourceNotFoundException(
-                    "FDR not found with ID: " + fdrId);
-        }
+        FdrInstrument fdr = fdrRepository.findById(fdrId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "FDR not found with ID: " + fdrId));
+
+        institutionAccessService.assertCanAccessFdr(fdr);
 
         return reviewRepository
                 .findByFdr_IdOrderByReviewedAtDesc(fdrId)

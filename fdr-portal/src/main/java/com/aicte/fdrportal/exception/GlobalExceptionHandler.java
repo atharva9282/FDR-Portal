@@ -1,5 +1,12 @@
 package com.aicte.fdrportal.exception;
 
+import com.aicte.fdrportal.service.AuditEventService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +17,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -18,6 +27,14 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    private final AuditEventService auditEventService;
+
+    public GlobalExceptionHandler(AuditEventService auditEventService) {
+        this.auditEventService = auditEventService;
+    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(
@@ -58,6 +75,26 @@ public class GlobalExceptionHandler {
                                 (first, second) -> first,
                                 LinkedHashMap::new
                         ));
+
+        return build(
+                HttpStatus.BAD_REQUEST,
+                "Request validation failed",
+                errors
+        );
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiError> handleConstraintViolation(
+            ConstraintViolationException ex) {
+
+        Map<String, String> errors = ex.getConstraintViolations()
+                .stream()
+                .collect(Collectors.toMap(
+                        violation -> violation.getPropertyPath().toString(),
+                        ConstraintViolation::getMessage,
+                        (first, second) -> first,
+                        LinkedHashMap::new
+                ));
 
         return build(
                 HttpStatus.BAD_REQUEST,
@@ -140,6 +177,8 @@ public class GlobalExceptionHandler {
             String message,
             Map<String, String> details
     ){
+        recordFailedRequest(status, message);
+
         ApiError body = new ApiError(
                 Instant.now(),
                 status.value(),
@@ -149,6 +188,24 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.status(status).body(body);
+    }
+
+    private void recordFailedRequest(HttpStatus status, String message) {
+        try {
+            if (RequestContextHolder.getRequestAttributes()
+                    instanceof ServletRequestAttributes attributes) {
+                HttpServletRequest request = attributes.getRequest();
+                String target = request.getRequestURI();
+                String details = "method=" + request.getMethod()
+                        + "; httpStatus=" + status.value()
+                        + "; message=" + (message == null ? "" : message);
+                auditEventService.recordFailure(
+                        "API_REQUEST_FAILED", "HTTP_REQUEST", target, details);
+            }
+        } catch (RuntimeException auditFailure) {
+            // Auditing must not replace the API error that is being returned.
+            log.warn("Unable to persist failed-request audit event", auditFailure);
+        }
     }
 
 }
