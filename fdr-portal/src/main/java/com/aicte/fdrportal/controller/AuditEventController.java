@@ -42,6 +42,27 @@ public class AuditEventController {
                     "'from' date must be on or before 'to' date");
         }
 
+        LocalDate earliestAllowedDate = LocalDate.of(2000, 1, 1);
+        LocalDate latestAllowedDate = LocalDate.now(BUSINESS_ZONE).plusYears(1);
+        if ((from != null && from.isBefore(earliestAllowedDate))
+                || (to != null && to.isAfter(latestAllowedDate))) {
+            throw new IllegalArgumentException(
+                    "Audit date filters are outside the supported range");
+        }
+        if (pageable.getPageSize() > 100) {
+            throw new IllegalArgumentException(
+                    "Audit page size cannot exceed 100 records");
+        }
+        if (actorEmail != null && actorEmail.length() > 180) {
+            throw new IllegalArgumentException("actorEmail filter cannot exceed 180 characters");
+        }
+        if (action != null && action.length() > 80) {
+            throw new IllegalArgumentException("action filter cannot exceed 80 characters");
+        }
+        if (targetType != null && targetType.length() > 80) {
+            throw new IllegalArgumentException("targetType filter cannot exceed 80 characters");
+        }
+
         Instant fromTime = from == null
                 ? null
                 : from.atStartOfDay(BUSINESS_ZONE).toInstant();
