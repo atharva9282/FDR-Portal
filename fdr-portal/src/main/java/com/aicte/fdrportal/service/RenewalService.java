@@ -32,17 +32,20 @@ public class RenewalService {
     private final RenewalRecordRepository renewalRepository;
     private final FdrDocumentRepository documentRepository;
     private final InstitutionAccessService accessService;
+    private final AuditEventService auditEventService;
 
     public RenewalService(
             FdrInstrumentRepository fdrRepository,
             RenewalRecordRepository renewalRepository,
             FdrDocumentRepository documentRepository,
-            InstitutionAccessService accessService) {
+            InstitutionAccessService accessService,
+            AuditEventService auditEventService) {
 
         this.fdrRepository = fdrRepository;
         this.renewalRepository = renewalRepository;
         this.documentRepository = documentRepository;
         this.accessService = accessService;
+        this.auditEventService = auditEventService;
     }
 
     @Transactional
@@ -141,7 +144,12 @@ public class RenewalService {
         original.setStatus(InstrumentStatus.RENEWAL_PENDING);
         fdrRepository.save(original);
 
-        return toResponse(renewalRepository.save(record));
+        RenewalRecord saved = renewalRepository.save(record);
+        auditEventService.recordSuccess(
+                "RENEWAL_SUBMITTED", "RENEWAL", saved.getId(),
+                "originalFdrId=" + original.getId()
+                        + "; replacementFdrId=" + replacement.getId());
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -253,7 +261,11 @@ public class RenewalService {
             fdrRepository.save(replacement);
         }
 
-        return toResponse(renewalRepository.save(record));
+        RenewalRecord saved = renewalRepository.save(record);
+        auditEventService.recordSuccess(
+                "RENEWAL_REVIEWED", "RENEWAL", saved.getId(),
+                "status=" + saved.getStatus());
+        return toResponse(saved);
     }
 
     private void requireRole(
