@@ -44,6 +44,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -285,11 +286,23 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
+    public CorsConfigurationSource corsConfigurationSource(
+            @Value("${app.cors.allowed-origins:http://localhost:5173}")
+            String allowedOriginsCsv) {
 
-        config.setAllowedOrigins(
-                List.of("http://localhost:5173"));
+        List<String> allowedOrigins = Arrays.stream(allowedOriginsCsv.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .distinct()
+                .toList();
+
+        if (allowedOrigins.isEmpty() || allowedOrigins.contains("*")) {
+            throw new IllegalStateException(
+                    "Configure explicit frontend origins in app.cors.allowed-origins");
+        }
+
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(
                 List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(
