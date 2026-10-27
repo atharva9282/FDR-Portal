@@ -2023,12 +2023,20 @@ function VerificationDetail({ f, reviews, refresh, canViewHistory = true }) {
     setBusy(true);
     try {
       await verificationApi.submitReview(f.id, form);
+      // Reset the review form immediately after a successful save, even if
+      // the follow-up GET requests fail.
+      setForm({
+        outcome: "UNDER_REVIEW",
+        verificationMethod: "OFFICIAL_DOCUMENT_REVIEW",
+        sourceReference: "",
+        remarks: "",
+      });
       try {
         await refresh();
         toast("Verification review recorded and details refreshed");
       } catch {
         toast(
-          "Review recorded, but this view could not refresh. Reopen the FDR to see the latest status and review history.",
+          "Review recorded, form reset, but this view could not refresh. Reopen the FDR to see the latest status and review history.",
           "info",
         );
       }
