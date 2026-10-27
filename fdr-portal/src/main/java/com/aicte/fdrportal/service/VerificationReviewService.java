@@ -41,6 +41,7 @@ public class VerificationReviewService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "FDR not found with ID: " + fdrId));
 
+        institutionAccessService.assertCanAccessFdr(fdr);
         validateReview(request);
 
         VerificationReview review = new VerificationReview();
@@ -68,10 +69,11 @@ public class VerificationReviewService {
     public List<VerificationReviewResponse> findByFdrId(
             Long fdrId) {
 
-        if (!fdrRepository.existsById(fdrId)) {
-            throw new ResourceNotFoundException(
-                    "FDR not found with ID: " + fdrId);
-        }
+        FdrInstrument fdr = fdrRepository.findById(fdrId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "FDR not found with ID: " + fdrId));
+
+        institutionAccessService.assertCanAccessFdr(fdr);
 
         return reviewRepository
                 .findByFdr_IdOrderByReviewedAtDesc(fdrId)
