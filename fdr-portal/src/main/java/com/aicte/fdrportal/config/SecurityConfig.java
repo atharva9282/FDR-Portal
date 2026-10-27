@@ -2,7 +2,7 @@ package com.aicte.fdrportal.config;
 
 import com.aicte.fdrportal.exception.ApiError;
 import com.aicte.fdrportal.service.AuditEventService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
