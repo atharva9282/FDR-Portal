@@ -214,3 +214,106 @@ body { font-size: 16px; line-height: var(--type-line-body); }
 .report-date-field input{height:36px;min-width:155px;padding:0 9px;border:1px solid #e3e8ef;border-radius:6px;background:#fff;color:#405069;font:500 11px Inter,system-ui,sans-serif}
 .report-status-table{margin-top:18px}
 .report-status-table table{max-width:650px}
+
+
+/* Accessibility/readability pass: consistent type sizes across every workspace. */
+:root {
+  --type-meta: 12px;
+  --type-small: 14px;
+  --type-body: 16px;
+  --type-label: 15px;
+  --type-control: 15px;
+  --type-section: 19px;
+  --type-page-title: 32px;
+  --type-line-body: 1.6;
+}
+body { font-size: 16px; line-height: 1.6; }
+.page-header h1 { font-size: 32px; line-height: 1.2; }
+.page-header p { font-size: 16px; line-height: 1.6; max-width: 900px; }
+.page-header .eyebrow, .eyebrow { font-size: 12px; line-height: 1.45; }
+.panel-head h3 { font-size: 19px; line-height: 1.35; }
+.panel-head p { font-size: 14px; line-height: 1.5; }
+.btn { min-height: 42px; font-size: 14px; }
+.btn.small-btn { min-height: 36px; font-size: 13px; }
+.field { font-size: 15px; line-height: 1.5; }
+.field input, .field select, .field textarea,
+.password-input input, .search-box input, .filter-select select,
+.select-wrap select { font-size: 15px; line-height: 1.45; }
+.field input, .field select, .password-input input { min-height: 44px; }
+.field small, .detail-fields small, td small, .user-meta small,
+.side-help small, .login-form-area footer { font-size: 12px; line-height: 1.5; }
+.nav-item { font-size: 14px; }
+.nav-group > small { font-size: 12px; }
+.workspace-tag { font-size: 12px; }
+.top-title span { font-size: 12px; }
+.top-title b, .user-meta b { font-size: 14px; }
+.side-help b { font-size: 14px; }
+.app-footer { font-size: 12px; line-height: 1.5; }
+.metric-card > span { font-size: 14px; line-height: 1.4; }
+.metric-card > b { font-size: 30px; line-height: 1.2; }
+.metric-card > small { font-size: 12px; line-height: 1.45; }
+.panel-head { gap: 12px; }
+.subtle-link, .quick-actions > a, .quick-actions > div b { font-size: 13px; }
+.quick-actions > div span { font-size: 12px; line-height: 1.45; }
+.empty > b, .error-state b { font-size: 15px; line-height: 1.4; }
+.empty p, .error-state p { font-size: 14px; line-height: 1.55; }
+.table-scroll th { font-size: 12px; line-height: 1.4; letter-spacing: .06em; }
+.table-scroll td { font-size: 14px; line-height: 1.5; }
+.table-scroll td small { font-size: 12px; line-height: 1.45; }
+.status { font-size: 12px; line-height: 1.4; }
+.filter-bar, .records-note, .search-box input, .filter-select select { font-size: 14px; }
+.pagination { font-size: 13px; }
+.form-note, .inline-alert, .callout, .workflow-callout { font-size: 14px; line-height: 1.55; }
+.form-section-title b { font-size: 17px; line-height: 1.4; }
+.form-section-title small { font-size: 13px; line-height: 1.5; }
+.form-actions .btn { min-height: 44px; }
+.detail-summary span { font-size: 12px; line-height: 1.45; }
+.detail-summary small { font-size: 13px; line-height: 1.45; }
+.detail-fields small { font-size: 13px; }
+.detail-fields b { font-size: 15px; line-height: 1.5; }
+.action-card b { font-size: 15px; line-height: 1.45; }
+.action-card small { font-size: 14px; line-height: 1.5; }
+.doc-info b { font-size: 14px; line-height: 1.4; }
+.doc-info small { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.doc-info .hash { font-size: 11px; }
+.dropzone b { font-size: 14px; line-height: 1.4; text-align: center; padding: 0 12px; }
+.dropzone small { font-size: 12px; }
+.secure-note { font-size: 12px; line-height: 1.5; }
+.timeline-title b { font-size: 14px; line-height: 1.4; }
+.timeline-title small, .timeline-item > div > small { font-size: 12px; line-height: 1.45; }
+.timeline-item p { font-size: 14px; line-height: 1.55; }
+.notification-row b { font-size: 14px; line-height: 1.4; }
+.notification-row p { font-size: 13px; line-height: 1.5; }
+.notification-row small { font-size: 12px; }
+.modal h2 { font-size: 22px; line-height: 1.3; }
+.modal > p, .modal .field { font-size: 15px; line-height: 1.5; }
+.modal-current small { font-size: 12px; }
+.role-list b { font-size: 14px; }
+.role-list small { font-size: 13px; line-height: 1.5; }
+.success-card b { font-size: 14px; }
+.success-card p { font-size: 13px; line-height: 1.45; }
+.toast { font-size: 14px; line-height: 1.5; }
+.tabs button { font-size: 14px; }
+.report-date-field, .report-date-field input { font-size: 14px; }
+
+@media (max-width: 980px) {
+  .page-header h1 { font-size: 29px; }
+  .page-header p { font-size: 15px; }
+  .panel-head h3 { font-size: 18px; }
+  .metric-card > span { font-size: 13px; }
+  .metric-card > small { font-size: 12px; }
+}
+@media (max-width: 600px) {
+  .page-header h1 { font-size: 27px; }
+  .page-header p { font-size: 15px; }
+  .panel-head h3 { font-size: 17px; }
+  .main-content { padding: 20px 12px 30px; }
+  .metric-card > span { font-size: 12px; }
+  .metric-card > b { font-size: 26px; }
+  .metric-card > small { font-size: 12px; }
+  .form-card { padding: 18px 14px; }
+  .table-scroll th { font-size: 11px; }
+  .table-scroll td { font-size: 13px; }
+  .user-meta { display: none; }
+  .tabs button { font-size: 13px; }
+}
