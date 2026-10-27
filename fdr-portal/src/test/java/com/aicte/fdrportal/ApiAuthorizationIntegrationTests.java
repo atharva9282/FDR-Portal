@@ -618,6 +618,15 @@ class ApiAuthorizationIntegrationTests {
     }
 
     @Test
+    void auditDateAfterSupportedRangeReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/audit-events")
+                        .param("to", "9999-12-31")
+                        .with(regulationJwt()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
     void reportWithReversedDateRangeReturnsBadRequest() throws Exception {
         mockMvc.perform(get("/api/reports/summary")
                         .param("from", "2026-10-28")
