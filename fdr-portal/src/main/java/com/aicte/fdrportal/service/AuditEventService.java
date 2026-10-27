@@ -118,7 +118,7 @@ public class AuditEventService {
     }
 
     private String normalize(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
+        return value == null || value.isBlank() ? "" : value.trim();
     }
 
     private String safe(String value, String fallback) {
