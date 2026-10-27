@@ -36,6 +36,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -165,6 +166,13 @@ class ApiAuthorizationIntegrationTests {
                         .with(institutionJwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.instrumentReference").value(reference));
+
+        mockMvc.perform(get("/api/audit-events")
+                        .param("action", "FDR_CREATED")
+                        .with(regulationJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].action").value("FDR_CREATED"))
+                .andExpect(jsonPath("$.content[0].targetId").value(createdId));
     }
 
     @Test
@@ -524,6 +532,54 @@ class ApiAuthorizationIntegrationTests {
     }
 
     @Test
+    void institutionCannotReadAuditEventsOrGlobalReports() throws Exception {
+        mockMvc.perform(get("/api/audit-events").with(institutionJwt()))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/reports/summary")
+                        .param("from", "2026-01-01")
+                        .param("to", "2026-10-27")
+                        .with(institutionJwt()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void regulationOfficialCanReadAuditEventsAndExportReports() throws Exception {
+        mockMvc.perform(get("/api/audit-events")
+                        .param("from", "2026-01-01")
+                        .param("to", "2026-10-27")
+                        .with(regulationJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray());
+
+        mockMvc.perform(get("/api/reports/summary")
+                        .param("from", "2026-01-01")
+                        .param("to", "2026-10-27")
+                        .with(regulationJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recordsSubmittedInPeriod").exists())
+                .andExpect(jsonPath("$.currentStatusBreakdown").isMap());
+
+        mockMvc.perform(get("/api/reports/fdrs.csv")
+                        .param("from", "2026-01-01")
+                        .param("to", "2026-10-27")
+                        .with(regulationJwt()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("text/csv")))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("attachment")));
+    }
+
+    @Test
+    void reportWithReversedDateRangeReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/reports/summary")
+                        .param("from", "2026-10-28")
+                        .param("to", "2026-10-27")
+                        .with(regulationJwt()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
     void institutionCannotReadInternalVerificationHistory() throws Exception {
         mockMvc.perform(get("/api/fdrs/1/reviews")
                         .with(institutionJwt()))
@@ -537,6 +593,12 @@ class ApiAuthorizationIntegrationTests {
                         .with(institutionJwt()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400));
+    }
+
+    private JwtRequestPostProcessor regulationJwt() {
+        return jwt()
+                .jwt(token -> token.subject("regulator@example.test"))
+                .authorities(new SimpleGrantedAuthority("ROLE_REGULATION_OFFICIAL"));
     }
 
     private JwtRequestPostProcessor approvingJwt() {
