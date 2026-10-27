@@ -24,7 +24,6 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -138,11 +137,12 @@ class ApiAuthorizationIntegrationTests {
     }
 
     @Test
-    void malformedPageParameterReturnsBadRequest() throws Exception {
+    void invalidStatusFilterReturnsBadRequest() throws Exception {
         mockMvc.perform(get("/api/fdrs")
-                        .param("page", "not-a-number")
+                        .param("status", "not-a-status")
                         .with(institutionJwt()))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
     }
 
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder
