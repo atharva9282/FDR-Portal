@@ -140,6 +140,42 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleDataConflict(
             DataIntegrityViolationException ex) {
 
+        String route = "unknown request";
+        if (RequestContextHolder.getRequestAttributes()
+                instanceof ServletRequestAttributes attributes) {
+            HttpServletRequest request = attributes.getRequest();
+            route = request.getMethod() + " " + request.getRequestURI();
+        }
+
+        Throwable rootCause = ex;
+        while (rootCause.getCause() != null && rootCause.getCause() != rootCause) {
+            rootCause = rootCause.getCause();
+        }
+
+        String sqlState = "unknown";
+        String constraint = "unknown";
+        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+            if (cause instanceof java.sql.SQLException sqlException
+                    && sqlException.getSQLState() != null) {
+                sqlState = sqlException.getSQLState();
+            }
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException violation
+                    && violation.getConstraintName() != null) {
+                constraint = violation.getConstraintName();
+            }
+        }
+
+        // Keep implementation details out of the HTTP response, but log enough
+        // diagnostic context to identify stale schemas or violated constraints.
+        log.error(
+                "Database integrity violation for {} (SQL state: {}, constraint: {}, root cause: {})",
+                route,
+                sqlState,
+                constraint,
+                rootCause.getClass().getSimpleName(),
+                ex
+        );
+
         return build(
                 HttpStatus.CONFLICT,
                 "The request conflicts with an existing database record",
