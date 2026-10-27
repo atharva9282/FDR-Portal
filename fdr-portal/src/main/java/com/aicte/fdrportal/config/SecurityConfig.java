@@ -209,6 +209,9 @@ public class SecurityConfig {
                                 "APPROVING_AUTHORITY",
                                 "REGULATION_OFFICIAL")
 
+                        .requestMatchers("/api/audit-events/**", "/api/reports/**")
+                        .hasAnyRole("ADMIN", "REGULATION_OFFICIAL")
+
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
