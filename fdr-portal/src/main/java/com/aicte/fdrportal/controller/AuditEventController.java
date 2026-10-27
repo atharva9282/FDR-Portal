@@ -44,8 +44,10 @@ public class AuditEventController {
 
         LocalDate earliestAllowedDate = LocalDate.of(2000, 1, 1);
         LocalDate latestAllowedDate = LocalDate.now(BUSINESS_ZONE).plusYears(1);
-        if ((from != null && from.isBefore(earliestAllowedDate))
-                || (to != null && to.isAfter(latestAllowedDate))) {
+        if ((from != null && (from.isBefore(earliestAllowedDate)
+                        || from.isAfter(latestAllowedDate)))
+                || (to != null && (to.isBefore(earliestAllowedDate)
+                        || to.isAfter(latestAllowedDate)))) {
             throw new IllegalArgumentException(
                     "Audit date filters are outside the supported range");
         }
