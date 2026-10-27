@@ -4,7 +4,6 @@ import com.aicte.fdrportal.dto.ReportSummaryResponse;
 import com.aicte.fdrportal.entity.FdrInstrument;
 import com.aicte.fdrportal.enums.InstrumentStatus;
 import com.aicte.fdrportal.enums.VerificationStatus;
-import com.aicte.fdrportal.exception.ResourceNotFoundException;
 import com.aicte.fdrportal.repository.FdrInstrumentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,7 +12,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
@@ -142,10 +140,33 @@ public class ReportingService {
                 || status == InstrumentStatus.RENEWED;
     }
 
+    /**
+     * Quote every textual field and neutralize spreadsheet formula prefixes.
+     * Spreadsheet applications may interpret a quoted CSV field as a formula,
+     * so CSV quoting alone is not a sufficient defense.
+     */
     private String csv(String value) {
         if (value == null) {
-            return "";
+            return "\"\"";
         }
-        return "\"" + value.replace("\"", "\"\"") + "\"";
+
+        int firstMeaningfulCharacter = 0;
+        while (firstMeaningfulCharacter < value.length()) {
+            char ch = value.charAt(firstMeaningfulCharacter);
+            if (!Character.isWhitespace(ch) && !Character.isISOControl(ch)) {
+                break;
+            }
+            firstMeaningfulCharacter++;
+        }
+
+        String safeValue = value;
+        if (firstMeaningfulCharacter < value.length()) {
+            char first = value.charAt(firstMeaningfulCharacter);
+            if (first == '=' || first == '+' || first == '-' || first == '@') {
+                safeValue = "'" + value;
+            }
+        }
+
+        return "\"" + safeValue.replace("\"", "\"\"") + "\"";
     }
 }
