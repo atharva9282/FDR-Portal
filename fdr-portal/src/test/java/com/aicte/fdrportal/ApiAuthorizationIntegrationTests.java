@@ -584,7 +584,7 @@ class ApiAuthorizationIntegrationTests {
     @Test
     void csvExportNeutralizesFormulaLikeTextFields() throws Exception {
         Institution institution = institutionRepository.findById(institutionId).orElseThrow();
-        institution.setName("=HYPERLINK(\\"https://example.test\\",\\"open\\")");
+        institution.setName("=HYPERLINK(\"https://example.test\",\"open\")");
         institutionRepository.saveAndFlush(institution);
         createFdr(uniqueReference());
 
@@ -594,7 +594,7 @@ class ApiAuthorizationIntegrationTests {
                         .with(regulationJwt()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString(
-                        "'=HYPERLINK(\\"https://example.test\\",\\"open\\")")))
+                        "'=HYPERLINK(\"https://example.test\",\"open\")")))
                 .andExpect(content().string(org.hamcrest.Matchers.not(
                         org.hamcrest.Matchers.containsString(",=HYPERLINK"))));
     }
