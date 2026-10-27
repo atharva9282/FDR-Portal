@@ -11,15 +11,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
+import java.time.LocalDate;
+import java.time.ZoneId;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -37,6 +42,7 @@ class ApiAuthorizationIntegrationTests {
     private UserAccountRepository userRepository;
 
     private String institutionEmail;
+    private Long institutionId;
 
     @BeforeEach
     void createInstitutionAccount() {
@@ -46,6 +52,7 @@ class ApiAuthorizationIntegrationTests {
         institution.setInstitutionCode("IT-" + suffix);
         institution.setName("API Test Institution " + suffix);
         institution = institutionRepository.saveAndFlush(institution);
+        institutionId = institution.getId();
 
         institutionEmail = "institution-" + suffix + "@example.test";
 
@@ -88,6 +95,79 @@ class ApiAuthorizationIntegrationTests {
                         .with(jwt().jwt(token -> token.subject("approver@example.test"))
                                 .authorities(new SimpleGrantedAuthority("ROLE_APPROVING_AUTHORITY"))))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void institutionCanRegisterAnFdrAndReadItBack() throws Exception {
+        String reference = uniqueReference();
+
+        var result = mockMvc.perform(registerFdrRequest(reference))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.instrumentReference").value(reference))
+                .andExpect(jsonPath("$.status").value("SUBMITTED"))
+                .andReturn();
+
+        String location = result.getResponse().getHeader("Location");
+        org.junit.jupiter.api.Assertions.assertNotNull(location);
+        String createdId = location.substring(location.lastIndexOf('/') + 1);
+
+        mockMvc.perform(get("/api/fdrs/" + createdId)
+                        .with(institutionJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.instrumentReference").value(reference));
+    }
+
+    @Test
+    void duplicateBankAndReferenceReturnsConflict() throws Exception {
+        String reference = uniqueReference();
+
+        mockMvc.perform(registerFdrRequest(reference))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(registerFdrRequest(reference))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409));
+    }
+
+    @Test
+    void missingFdrReturnsNotFound() throws Exception {
+        mockMvc.perform(get("/api/fdrs/999999999")
+                        .with(institutionJwt()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    void malformedPageParameterReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/fdrs")
+                        .param("page", "not-a-number")
+                        .with(institutionJwt()))
+                .andExpect(status().isBadRequest());
+    }
+
+    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder
+    registerFdrRequest(String reference) {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Kolkata"));
+        String body = """
+                {
+                  "institutionId": %d,
+                  "instrumentReference": "%s",
+                  "bankName": "API Test Bank",
+                  "branchName": "Main",
+                  "depositAmount": 125000.00,
+                  "issueDate": "%s",
+                  "maturityDate": "%s"
+                }
+                """.formatted(institutionId, reference, today.minusDays(30), today.plusYears(1));
+
+        return post("/api/fdrs")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .with(institutionJwt());
+    }
+
+    private String uniqueReference() {
+        return "API-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
     }
 
     @Test
