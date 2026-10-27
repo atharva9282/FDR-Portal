@@ -582,6 +582,42 @@ class ApiAuthorizationIntegrationTests {
     }
 
     @Test
+    void csvExportNeutralizesFormulaLikeTextFields() throws Exception {
+        Institution institution = institutionRepository.findById(institutionId).orElseThrow();
+        institution.setName("=HYPERLINK(\\"https://example.test\\",\\"open\\")");
+        institutionRepository.saveAndFlush(institution);
+        createFdr(uniqueReference());
+
+        mockMvc.perform(get("/api/reports/fdrs.csv")
+                        .param("from", "2026-01-01")
+                        .param("to", "2026-12-31")
+                        .with(regulationJwt()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "'=HYPERLINK(\\"https://example.test\\",\\"open\\")")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString(",=HYPERLINK"))));
+    }
+
+    @Test
+    void oversizedAuditPageReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/audit-events")
+                        .param("size", "101")
+                        .with(regulationJwt()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    void auditDateOutsideSupportedRangeReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/audit-events")
+                        .param("from", "1900-01-01")
+                        .with(regulationJwt()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
     void reportWithReversedDateRangeReturnsBadRequest() throws Exception {
         mockMvc.perform(get("/api/reports/summary")
                         .param("from", "2026-10-28")
