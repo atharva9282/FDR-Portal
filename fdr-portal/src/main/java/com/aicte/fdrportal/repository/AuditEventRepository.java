@@ -16,9 +16,9 @@ public interface AuditEventRepository extends JpaRepository<AuditEvent, Long> {
             from AuditEvent event
             where (:fromTime is null or event.occurredAt >= :fromTime)
               and (:toTime is null or event.occurredAt <= :toTime)
-              and (:actorEmail is null or lower(event.actorEmail) like lower(concat('%', :actorEmail, '%')))
-              and (:action is null or lower(event.action) like lower(concat('%', :action, '%')))
-              and (:targetType is null or lower(event.targetType) like lower(concat('%', :targetType, '%')))
+              and (:actorEmail = '' or lower(event.actorEmail) like lower(concat('%', :actorEmail, '%')))
+              and (:action = '' or lower(event.action) like lower(concat('%', :action, '%')))
+              and (:targetType = '' or lower(event.targetType) like lower(concat('%', :targetType, '%')))
             """)
     Page<AuditEvent> search(
             @Param("fromTime") Instant fromTime,
