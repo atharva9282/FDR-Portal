@@ -15,9 +15,13 @@ import org.springframework.stereotype.Service;
 public class InstitutionService {
 
     private final InstitutionRepository institutionRepository;
+    private final AuditEventService auditEventService;
 
-    public InstitutionService(InstitutionRepository institutionRepository) {
+    public InstitutionService(
+            InstitutionRepository institutionRepository,
+            AuditEventService auditEventService) {
         this.institutionRepository = institutionRepository;
+        this.auditEventService = auditEventService;
     }
 
     @Transactional
@@ -38,7 +42,11 @@ public class InstitutionService {
         institution.setDistrict(request.district());
         institution.setState(request.state());
 
-        return toResponse(institutionRepository.save(institution));
+        Institution saved = institutionRepository.save(institution);
+        auditEventService.recordSuccess(
+                "INSTITUTION_CREATED", "INSTITUTION", saved.getId(),
+                "institutionCode=" + saved.getInstitutionCode());
+        return toResponse(saved);
 
     }
 
