@@ -384,6 +384,45 @@ class ApiAuthorizationIntegrationTests {
 
     @Test
     void renewalApprovalRequiresReplacementDocument() throws Exception {
+        RenewalScenario scenario = createRenewalUnderReview();
+
+        mockMvc.perform(patch("/api/renewals/{renewalId}/review", scenario.renewalId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"targetStatus": "APPROVED", "remarks": "Approval without replacement document"}
+                                """)
+                        .with(approvingJwt()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409));
+    }
+
+    @Test
+    void renewalCanBeApprovedAfterReplacementDocumentUploaded() throws Exception {
+        RenewalScenario scenario = createRenewalUnderReview();
+
+        uploadPdf(scenario.replacementFdrId(), "RENEWAL_REPLACEMENT");
+
+        mockMvc.perform(patch("/api/renewals/{renewalId}/review", scenario.renewalId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"targetStatus": "APPROVED", "remarks": "Replacement document checked"}
+                                """)
+                        .with(approvingJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
+
+        mockMvc.perform(get("/api/fdrs/{fdrId}", scenario.originalFdrId())
+                        .with(institutionJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RENEWED"));
+
+        mockMvc.perform(get("/api/fdrs/{fdrId}", scenario.replacementFdrId())
+                        .with(institutionJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UNDER_REVIEW"));
+    }
+
+    private RenewalScenario createRenewalUnderReview() throws Exception {
         String fdrId = createVerifiedActiveFdr();
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Kolkata"));
         String replacementReference = uniqueReference();
@@ -423,33 +462,7 @@ class ApiAuthorizationIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UNDER_REVIEW"));
 
-        mockMvc.perform(patch("/api/renewals/{renewalId}/review", renewalId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"targetStatus": "APPROVED", "remarks": "Approval without replacement document"}
-                                """)
-                        .with(approvingJwt()))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.status").value(409));
-
-        uploadPdf(replacementFdrId, "RENEWAL_REPLACEMENT");
-
-        mockMvc.perform(patch("/api/renewals/{renewalId}/review", renewalId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"targetStatus": "APPROVED", "remarks": "Replacement document checked"}
-                                """)
-                        .with(approvingJwt()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("APPROVED"));
-
-        mockMvc.perform(get("/api/fdrs/{fdrId}", fdrId).with(institutionJwt()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("RENEWED"));
-
-        mockMvc.perform(get("/api/fdrs/{fdrId}", replacementFdrId).with(institutionJwt()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("UNDER_REVIEW"));
+        return new RenewalScenario(fdrId, renewalId, replacementFdrId);
     }
 
     private String createVerifiedActiveFdr() throws Exception {
@@ -516,5 +529,11 @@ class ApiAuthorizationIntegrationTests {
         return jwt()
                 .jwt(token -> token.subject(institutionEmail))
                 .authorities(new SimpleGrantedAuthority("ROLE_INSTITUTION"));
+    }
+
+    private record RenewalScenario(
+            String originalFdrId,
+            String renewalId,
+            String replacementFdrId) {
     }
 }
