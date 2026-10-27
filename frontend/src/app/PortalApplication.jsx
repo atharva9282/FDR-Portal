@@ -498,15 +498,79 @@ function Shell() {
             <Route path="/" element={<NavigateToLogin to="/dashboard" />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/fdrs" element={<FdrList />} />
-            <Route path="/fdrs/new" element={<FdrForm />} />
+            <Route
+              path="/fdrs/new"
+              element={
+                <Protected roles={["ADMIN", "INSTITUTION"]}>
+                  <FdrForm />
+                </Protected>
+              }
+            />
             <Route path="/fdrs/:id" element={<FdrDetail />} />
-            <Route path="/institutions" element={<InstitutionList />} />
-            <Route path="/institutions/new" element={<InstitutionForm />} />
-            <Route path="/monitoring" element={<Monitoring />} />
-            <Route path="/verification" element={<Verification />} />
+            <Route
+              path="/institutions"
+              element={
+                <Protected
+                  roles={[
+                    "ADMIN",
+                    "VERIFICATION_OFFICIAL",
+                    "APPROVING_AUTHORITY",
+                    "REGULATION_OFFICIAL",
+                  ]}
+                >
+                  <InstitutionList />
+                </Protected>
+              }
+            />
+            <Route
+              path="/institutions/new"
+              element={
+                <Protected roles={["ADMIN"]}>
+                  <InstitutionForm />
+                </Protected>
+              }
+            />
+            <Route
+              path="/monitoring"
+              element={
+                <Protected
+                  roles={[
+                    "ADMIN",
+                    "INSTITUTION",
+                    "VERIFICATION_OFFICIAL",
+                    "APPROVING_AUTHORITY",
+                    "REGULATION_OFFICIAL",
+                  ]}
+                >
+                  <Monitoring />
+                </Protected>
+              }
+            />
+            <Route
+              path="/verification"
+              element={
+                <Protected
+                  roles={[
+                    "ADMIN",
+                    "VERIFICATION_OFFICIAL",
+                    "APPROVING_AUTHORITY",
+                    "REGULATION_OFFICIAL",
+                  ]}
+                >
+                  <Verification />
+                </Protected>
+              }
+            />
             <Route path="/renewals" element={<Workflow kind="renewal" />} />
             <Route path="/releases" element={<Workflow kind="release" />} />
-            <Route path="/users" element={<UsersPage />} />
+            <Route
+              path="/users"
+              element={
+                <Protected roles={["ADMIN"]}>
+                  <UsersPage />
+                </Protected>
+              }
+            />
             <Route
               path="/reports"
               element={
