@@ -1533,12 +1533,13 @@ function FdrDetail() {
       error,
       loading,
       reload,
+      setData: setFdr,
     } = useLoad(() => fdrApi.get(id).then((r) => r.data), [id]);
-  const { data: docs, reload: reloadDocs } = useLoad(
+  const { data: docs, reload: reloadDocs, setData: setDocs } = useLoad(
       () => fdrApi.documents(id).then((r) => r.data),
       [id],
     ),
-    { data: reviews } = useLoad(
+    { data: reviews, setData: setReviews } = useLoad(
       () =>
         user.role === "INSTITUTION"
           ? Promise.resolve([])
@@ -1553,6 +1554,20 @@ function FdrDetail() {
       () => fdrApi.releases(id).then((r) => r.data),
       [id],
     );
+  const refreshDocuments = async () => {
+    const response = await fdrApi.documents(id);
+    setDocs(response.data);
+  };
+  const refreshVerification = async () => {
+    const [fdrResponse, reviewResponse] = await Promise.all([
+      fdrApi.get(id),
+      user.role === "INSTITUTION"
+        ? Promise.resolve({ data: [] })
+        : fdrApi.reviews(id),
+    ]);
+    setFdr(fdrResponse.data);
+    setReviews(reviewResponse.data);
+  };
   if (loading)
     return (
       <>
@@ -1731,6 +1746,7 @@ function FdrDetail() {
           fdrId={id}
           docs={docs}
           reload={reloadDocs}
+          refreshDocuments={refreshDocuments}
           canUpload={canUpload}
         />
       )}
@@ -1738,7 +1754,7 @@ function FdrDetail() {
         <VerificationDetail
           f={f}
           reviews={reviews}
-          reload={reload}
+          refresh={refreshVerification}
           canViewHistory={!institutionUser}
         />
       )}
@@ -1751,9 +1767,10 @@ function FdrDetail() {
     </>
   );
 }
-function Documents({ fdrId, docs, reload, canUpload }) {
+function Documents({ fdrId, docs, reload, refreshDocuments, canUpload }) {
   const [drag, setDrag] = useState(false),
     [file, setFile] = useState(null),
+    [fileInputKey, setFileInputKey] = useState(0),
     [type, setType] = useState("FDR_COPY"),
     [busy, setBusy] = useState(false),
     toast = useToast();
@@ -1774,9 +1791,18 @@ function Documents({ fdrId, docs, reload, canUpload }) {
     setBusy(true);
     try {
       await documentApi.upload(fdrId, form);
-      toast("Document uploaded");
       setFile(null);
-      reload();
+      setFileInputKey((key) => key + 1);
+      try {
+        await refreshDocuments();
+        toast("Document uploaded and list refreshed");
+      } catch {
+        reload();
+        toast(
+          "Document uploaded, but the list could not refresh. Reopen this record to see the latest documents.",
+          "info",
+        );
+      }
     } catch (e) {
       toast(message(e), "error");
     } finally {
@@ -1852,6 +1878,7 @@ function Documents({ fdrId, docs, reload, canUpload }) {
               }}
             >
               <input
+                key={fileInputKey}
                 type="file"
                 accept="application/pdf,image/png,image/jpeg"
                 onChange={(e) => setFile(e.target.files[0] || null)}
@@ -1907,7 +1934,7 @@ function Documents({ fdrId, docs, reload, canUpload }) {
     </div>
   );
 }
-function VerificationDetail({ f, reviews, reload, canViewHistory = true }) {
+function VerificationDetail({ f, reviews, refresh, canViewHistory = true }) {
   const { user } = useAuth(),
     toast = useToast(),
     [form, setForm] = useState({
@@ -1932,8 +1959,15 @@ function VerificationDetail({ f, reviews, reload, canViewHistory = true }) {
     setBusy(true);
     try {
       await verificationApi.submitReview(f.id, form);
-      toast("Verification review recorded");
-      reload();
+      try {
+        await refresh();
+        toast("Verification review recorded and details refreshed");
+      } catch {
+        toast(
+          "Review recorded, but this view could not refresh. Reopen the FDR to see the latest status and review history.",
+          "info",
+        );
+      }
     } catch (e) {
       toast(message(e), "error");
     } finally {
