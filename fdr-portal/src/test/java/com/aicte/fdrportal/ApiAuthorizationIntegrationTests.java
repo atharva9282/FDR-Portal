@@ -117,9 +117,11 @@ class ApiAuthorizationIntegrationTests {
     }
 
     @Test
-    void unauthenticatedFdrRequestReturnsUnauthorized() throws Exception {
+    void unauthenticatedFdrRequestReturnsStructuredUnauthorized() throws Exception {
         mockMvc.perform(get("/api/fdrs"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.message").value("Authentication is required to access this resource"));
     }
 
     @Test
@@ -534,13 +536,23 @@ class ApiAuthorizationIntegrationTests {
     @Test
     void institutionCannotReadAuditEventsOrGlobalReports() throws Exception {
         mockMvc.perform(get("/api/audit-events").with(institutionJwt()))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403));
 
         mockMvc.perform(get("/api/reports/summary")
                         .param("from", "2026-01-01")
                         .param("to", "2026-10-27")
                         .with(institutionJwt()))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403));
+
+        mockMvc.perform(get("/api/audit-events")
+                        .param("action", "ACCESS_DENIED")
+                        .param("actorEmail", institutionEmail)
+                        .with(regulationJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].action").value("ACCESS_DENIED"))
+                .andExpect(jsonPath("$.content[0].actorRole").value("INSTITUTION"));
     }
 
     @Test
