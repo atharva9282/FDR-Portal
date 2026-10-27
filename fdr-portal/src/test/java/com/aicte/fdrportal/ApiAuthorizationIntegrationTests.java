@@ -5,6 +5,7 @@ import com.aicte.fdrportal.entity.UserAccount;
 import com.aicte.fdrportal.enums.UserRole;
 import com.aicte.fdrportal.repository.InstitutionRepository;
 import com.aicte.fdrportal.repository.UserAccountRepository;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -57,6 +59,7 @@ class ApiAuthorizationIntegrationTests {
 
     private String institutionEmail;
     private String verificationEmail;
+    private String approvingEmail;
     private Long institutionId;
 
     @DynamicPropertySource
@@ -102,6 +105,14 @@ class ApiAuthorizationIntegrationTests {
         verificationAccount.setRole(UserRole.VERIFICATION_OFFICIAL);
         verificationAccount.setEnabled(true);
         userRepository.saveAndFlush(verificationAccount);
+
+        approvingEmail = "approver-" + suffix + "@example.test";
+        UserAccount approvingAccount = new UserAccount();
+        approvingAccount.setEmail(approvingEmail);
+        approvingAccount.setPasswordHash("not-used-in-mock-jwt-test");
+        approvingAccount.setRole(UserRole.APPROVING_AUTHORITY);
+        approvingAccount.setEnabled(true);
+        userRepository.saveAndFlush(approvingAccount);
     }
 
     @Test
@@ -308,6 +319,171 @@ class ApiAuthorizationIntegrationTests {
     }
 
     @Test
+    void releaseWorkflowRequiresReviewApprovalAndCompletionReference() throws Exception {
+        String fdrId = createVerifiedActiveFdr();
+        String submitBody = """
+                {"reason": "Release integration test"}
+                """;
+
+        var submitted = mockMvc.perform(post("/api/fdrs/{fdrId}/release-requests", fdrId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(submitBody)
+                        .with(institutionJwt()))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("SUBMITTED"))
+                .andReturn();
+
+        String location = submitted.getResponse().getHeader("Location");
+        org.junit.jupiter.api.Assertions.assertNotNull(location);
+        String requestId = location.substring(location.lastIndexOf('/') + 1);
+
+        mockMvc.perform(patch("/api/release-requests/{requestId}/review", requestId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"targetStatus": "UNDER_REVIEW", "remarks": "Initial review"}
+                                """)
+                        .with(verificationJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UNDER_REVIEW"));
+
+        mockMvc.perform(patch("/api/release-requests/{requestId}/review", requestId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"targetStatus": "APPROVED", "remarks": "Approval recorded"}
+                                """)
+                        .with(approvingJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
+
+        mockMvc.perform(patch("/api/release-requests/{requestId}/review", requestId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"targetStatus": "COMPLETED", "remarks": "Release recorded"}
+                                """)
+                        .with(approvingJwt()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+
+        mockMvc.perform(patch("/api/release-requests/{requestId}/review", requestId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "targetStatus": "COMPLETED",
+                                  "remarks": "Release recorded",
+                                  "completionReference": "BANK-RELEASE-REF-TEST"
+                                }
+                                """)
+                        .with(approvingJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"));
+
+        mockMvc.perform(get("/api/fdrs/{fdrId}", fdrId).with(institutionJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RELEASED"));
+    }
+
+    @Test
+    void renewalApprovalRequiresReplacementDocument() throws Exception {
+        String fdrId = createVerifiedActiveFdr();
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Kolkata"));
+        String replacementReference = uniqueReference();
+        String body = """
+                {
+                  "instrumentReference": "%s",
+                  "bankName": "API Test Bank",
+                  "branchName": "Main",
+                  "depositAmount": 135000.00,
+                  "issueDate": "%s",
+                  "maturityDate": "%s",
+                  "remarks": "Renewal integration test"
+                }
+                """.formatted(replacementReference, today.minusDays(1), today.plusYears(2));
+
+        var submitted = mockMvc.perform(post("/api/fdrs/{fdrId}/renewals", fdrId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body)
+                        .with(institutionJwt()))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("SUBMITTED"))
+                .andReturn();
+
+        String renewalLocation = submitted.getResponse().getHeader("Location");
+        org.junit.jupiter.api.Assertions.assertNotNull(renewalLocation);
+        String renewalId = renewalLocation.substring(renewalLocation.lastIndexOf('/') + 1);
+        String replacementFdrId = String.valueOf(
+                JsonPath.read(submitted.getResponse().getContentAsString(), "$.replacementFdrId"));
+
+        mockMvc.perform(patch("/api/renewals/{renewalId}/review", renewalId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"targetStatus": "UNDER_REVIEW", "remarks": "Initial review"}
+                                """)
+                        .with(verificationJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UNDER_REVIEW"));
+
+        mockMvc.perform(patch("/api/renewals/{renewalId}/review", renewalId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"targetStatus": "APPROVED", "remarks": "Approval without replacement document"}
+                                """)
+                        .with(approvingJwt()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409));
+
+        uploadPdf(replacementFdrId, "RENEWAL_REPLACEMENT");
+
+        mockMvc.perform(patch("/api/renewals/{renewalId}/review", renewalId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"targetStatus": "APPROVED", "remarks": "Replacement document checked"}
+                                """)
+                        .with(approvingJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
+
+        mockMvc.perform(get("/api/fdrs/{fdrId}", fdrId).with(institutionJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RENEWED"));
+
+        mockMvc.perform(get("/api/fdrs/{fdrId}", replacementFdrId).with(institutionJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UNDER_REVIEW"));
+    }
+
+    private String createVerifiedActiveFdr() throws Exception {
+        String fdrId = createFdr(uniqueReference());
+        String body = """
+                {
+                  "outcome": "VERIFIED_BY_OFFICIAL",
+                  "verificationMethod": "OFFICIAL_DOCUMENT_REVIEW",
+                  "sourceReference": "DOC-REVIEW-TEST",
+                  "remarks": "Supporting document reviewed for workflow test"
+                }
+                """;
+
+        mockMvc.perform(post("/api/fdrs/{fdrId}/reviews", fdrId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body)
+                        .with(verificationJwt()))
+                .andExpect(status().isCreated());
+
+        return fdrId;
+    }
+
+    private void uploadPdf(String fdrId, String documentType) throws Exception {
+        byte[] pdfBytes = "%PDF-1.4\nFDR Portal workflow test\n%%EOF".getBytes(StandardCharsets.UTF_8);
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "replacement-fdr.pdf", "application/pdf", pdfBytes);
+
+        mockMvc.perform(multipart("/api/fdrs/{fdrId}/documents", fdrId)
+                        .file(file)
+                        .param("documentType", documentType)
+                        .with(institutionJwt()))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
     void institutionCannotReadInternalVerificationHistory() throws Exception {
         mockMvc.perform(get("/api/fdrs/1/reviews")
                         .with(institutionJwt()))
@@ -321,6 +497,12 @@ class ApiAuthorizationIntegrationTests {
                         .with(institutionJwt()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400));
+    }
+
+    private JwtRequestPostProcessor approvingJwt() {
+        return jwt()
+                .jwt(token -> token.subject(approvingEmail))
+                .authorities(new SimpleGrantedAuthority("ROLE_APPROVING_AUTHORITY"));
     }
 
     private JwtRequestPostProcessor verificationJwt() {
