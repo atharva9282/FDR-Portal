@@ -2950,6 +2950,7 @@ function Reports() {
   const [from, setFrom] = useState(`${year}-01-01`);
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [exporting, setExporting] = useState(false);
+  const [auditPageNumber, setAuditPageNumber] = useState(0);
   const toast = useToast();
   const {
     data: summary,
@@ -2967,9 +2968,9 @@ function Reports() {
     reload: reloadAudit,
   } = useLoad(
     () => api.get("/audit-events", {
-      params: { from, to, page: 0, size: 12, sort: "occurredAt,desc" },
+      params: { from, to, page: auditPageNumber, size: 12, sort: "occurredAt,desc" },
     }).then((r) => r.data),
-    [from, to],
+    [from, to, auditPageNumber],
   );
 
   const exportCsv = async () => {
@@ -3030,11 +3031,11 @@ function Reports() {
       <div className="filter-bar report-filter-bar">
         <label className="report-date-field">
           <span>From date</span>
-          <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
+          <input type="date" value={from} max={to || undefined} onChange={(e) => { setFrom(e.target.value); setAuditPageNumber(0); }} />
         </label>
         <label className="report-date-field">
           <span>To date</span>
-          <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
+          <input type="date" value={to} min={from || undefined} onChange={(e) => { setTo(e.target.value); setAuditPageNumber(0); }} />
         </label>
         <button className="btn ghost" onClick={() => { reload(); reloadAudit(); }} disabled={loading || auditLoading}>
           <RefreshCw size={15} /> Refresh data
@@ -3123,11 +3124,7 @@ function Reports() {
                 <PageControls
                   page={auditPage.number || 0}
                   totalPages={auditPage.totalPages || 1}
-                  onPage={(nextPage) => {
-                    api.get("/audit-events", {
-                      params: { from, to, page: nextPage, size: 12, sort: "occurredAt,desc" },
-                    }).then((r) => {}).catch((e) => toast(message(e), "error"));
-                  }}
+                  onPage={setAuditPageNumber}
                 />
               </>
             ) : (
