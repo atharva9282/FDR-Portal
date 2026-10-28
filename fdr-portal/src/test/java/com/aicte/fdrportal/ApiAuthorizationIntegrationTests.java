@@ -534,7 +534,7 @@ class ApiAuthorizationIntegrationTests {
                         .content("""
                                 {"targetStatus": "UNDER_REVIEW", "remarks": "Initial review"}
                                 """)
-                        .with(verificationJwt()))
+                        .with(approvingJwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UNDER_REVIEW"));
 
