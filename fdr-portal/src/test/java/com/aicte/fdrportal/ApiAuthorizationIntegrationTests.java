@@ -142,6 +142,46 @@ class ApiAuthorizationIntegrationTests {
     }
 
     @Test
+    void approvingAuthorityCanReadOnlyRenewalAndReleaseQueues() throws Exception {
+        mockMvc.perform(get("/api/renewals").with(approvingJwt()))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[]"));
+
+        mockMvc.perform(get("/api/release-requests").with(approvingJwt()))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[]"));
+    }
+
+    @Test
+    void approvingAuthorityCannotReadGeneralFdrOrVerificationWorkspaces() throws Exception {
+        mockMvc.perform(get("/api/fdrs").with(approvingJwt()))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/monitoring/dashboard")
+                        .param("withinDays", "30")
+                        .with(approvingJwt()))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/fdrs/1/reviews").with(approvingJwt()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void verificationOfficialCannotAccessRenewalOrReleaseRequests() throws Exception {
+        mockMvc.perform(get("/api/renewals").with(verificationJwt()))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/release-requests").with(verificationJwt()))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/fdrs/1/renewals").with(verificationJwt()))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/fdrs/1/release-requests").with(verificationJwt()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void approvingAuthorityCannotRegisterAnFdr() throws Exception {
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .post("/api/fdrs")
@@ -378,7 +418,7 @@ class ApiAuthorizationIntegrationTests {
                         .content("""
                                 {"targetStatus": "UNDER_REVIEW", "remarks": "Initial review"}
                                 """)
-                        .with(verificationJwt()))
+                        .with(approvingJwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UNDER_REVIEW"));
 
@@ -494,7 +534,7 @@ class ApiAuthorizationIntegrationTests {
                         .content("""
                                 {"targetStatus": "UNDER_REVIEW", "remarks": "Initial review"}
                                 """)
-                        .with(verificationJwt()))
+                        .with(approvingJwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UNDER_REVIEW"));
 

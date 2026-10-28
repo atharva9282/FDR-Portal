@@ -166,7 +166,6 @@ public class SecurityConfig {
                         .hasAnyRole(
                                 "ADMIN",
                                 "VERIFICATION_OFFICIAL",
-                                "APPROVING_AUTHORITY",
                                 "REGULATION_OFFICIAL")
 
                         .requestMatchers(
@@ -175,7 +174,6 @@ public class SecurityConfig {
                         .hasAnyRole(
                                 "ADMIN",
                                 "VERIFICATION_OFFICIAL",
-                                "APPROVING_AUTHORITY",
                                 "REGULATION_OFFICIAL")
 
                         .requestMatchers("/api/monitoring/**")
@@ -183,7 +181,6 @@ public class SecurityConfig {
                                 "ADMIN",
                                 "INSTITUTION",
                                 "VERIFICATION_OFFICIAL",
-                                "APPROVING_AUTHORITY",
                                 "REGULATION_OFFICIAL")
 
                         .requestMatchers(
@@ -191,24 +188,16 @@ public class SecurityConfig {
                         .hasAnyRole(
                                 "ADMIN",
                                 "INSTITUTION",
-                                "VERIFICATION_OFFICIAL",
-                                "APPROVING_AUTHORITY",
                                 "REGULATION_OFFICIAL")
 
-                        .requestMatchers("/api/release-requests/**")
-                        .hasAnyRole(
-                                "ADMIN",
-                                "VERIFICATION_OFFICIAL",
-                                "APPROVING_AUTHORITY",
-                                "REGULATION_OFFICIAL")
+                        .requestMatchers("/api/release-requests", "/api/release-requests/**")
+                        .hasAnyRole("ADMIN", "APPROVING_AUTHORITY")
 
                         .requestMatchers(
                                 HttpMethod.GET, "/api/fdrs/*/renewals")
                         .hasAnyRole(
                                 "ADMIN",
                                 "INSTITUTION",
-                                "VERIFICATION_OFFICIAL",
-                                "APPROVING_AUTHORITY",
                                 "REGULATION_OFFICIAL")
 
                         .requestMatchers(HttpMethod.POST, "/api/fdrs")
@@ -228,17 +217,10 @@ public class SecurityConfig {
                                 "ADMIN",
                                 "INSTITUTION",
                                 "VERIFICATION_OFFICIAL",
-                                "APPROVING_AUTHORITY",
                                 "REGULATION_OFFICIAL")
 
-
-
-                        .requestMatchers("/api/renewals/**")
-                        .hasAnyRole(
-                                "ADMIN",
-                                "VERIFICATION_OFFICIAL",
-                                "APPROVING_AUTHORITY",
-                                "REGULATION_OFFICIAL")
+                        .requestMatchers("/api/renewals", "/api/renewals/**")
+                        .hasAnyRole("ADMIN", "APPROVING_AUTHORITY")
 
                         .requestMatchers("/api/audit-events/**", "/api/reports/**")
                         .hasAnyRole("ADMIN", "REGULATION_OFFICIAL")

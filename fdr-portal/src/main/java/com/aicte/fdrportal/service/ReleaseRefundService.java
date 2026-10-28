@@ -114,10 +114,23 @@ public class ReleaseRefundService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "FDR not found with ID: " + fdrId));
 
+        UserAccount actor = accessService.currentUser();
+        requireRole(actor, UserRole.ADMIN, UserRole.INSTITUTION,
+                UserRole.REGULATION_OFFICIAL);
         accessService.assertCanAccessFdr(fdr);
 
         return requestRepository
                 .findByFdr_IdOrderByRequestedAtDesc(fdrId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReleaseRequestResponse> findAllForApprovalQueue() {
+        UserAccount actor = accessService.currentUser();
+        requireRole(actor, UserRole.ADMIN, UserRole.APPROVING_AUTHORITY);
+        return requestRepository.findAllByOrderByRequestedAtDesc()
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -148,8 +161,7 @@ public class ReleaseRefundService {
                 requireRole(
                         actor,
                         UserRole.ADMIN,
-                        UserRole.VERIFICATION_OFFICIAL,
-                        UserRole.REGULATION_OFFICIAL
+                        UserRole.APPROVING_AUTHORITY
                 );
 
                 requireCurrentStatus(

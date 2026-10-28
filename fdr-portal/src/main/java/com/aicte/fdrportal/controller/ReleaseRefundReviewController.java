@@ -10,6 +10,8 @@ import jakarta.validation.constraints.Positive;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/release-requests")
 @Validated
@@ -20,6 +22,11 @@ public class ReleaseRefundReviewController {
     public ReleaseRefundReviewController(
             ReleaseRefundService releaseRefundService) {
         this.releaseRefundService = releaseRefundService;
+    }
+
+    @GetMapping
+    public List<ReleaseRequestResponse> findAllForApprovalQueue() {
+        return releaseRefundService.findAllForApprovalQueue();
     }
 
     @PatchMapping("/{requestId}/review")

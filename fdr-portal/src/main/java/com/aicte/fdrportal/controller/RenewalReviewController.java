@@ -10,6 +10,8 @@ import jakarta.validation.constraints.Positive;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/renewals")
 @Validated
@@ -19,6 +21,11 @@ public class RenewalReviewController {
 
     public RenewalReviewController(RenewalService renewalService) {
         this.renewalService = renewalService;
+    }
+
+    @GetMapping
+    public List<RenewalResponse> findAllForApprovalQueue() {
+        return renewalService.findAllForApprovalQueue();
     }
 
     @PatchMapping("/{renewalId}/review")

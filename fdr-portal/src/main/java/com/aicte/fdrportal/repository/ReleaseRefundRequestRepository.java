@@ -14,6 +14,8 @@ public interface ReleaseRefundRequestRepository
             Long fdrId
     );
 
+    List<ReleaseRefundRequest> findAllByOrderByRequestedAtDesc();
+
     boolean existsByFdr_IdAndStatusIn(
             Long fdrId,
             Collection<ReleaseRequestStatus> statuses
