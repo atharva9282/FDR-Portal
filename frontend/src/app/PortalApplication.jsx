@@ -132,6 +132,17 @@ function NavigateToLogin({ to }) {
   useEffect(() => n("/login", { replace: true, state: { from: to } }), []);
   return null;
 }
+function homeForRole(role) {
+  if (role === "APPROVING_AUTHORITY") return "/renewals";
+  if (role === "VERIFICATION_OFFICIAL") return "/verification";
+  return "/dashboard";
+}
+function RoleHome() {
+  const { user } = useAuth();
+  const n = useNavigate();
+  useEffect(() => n(homeForRole(user?.role), { replace: true }), [user?.role]);
+  return null;
+}
 function PortalApplication() {
   return (
     <Routes>
@@ -158,7 +169,7 @@ function Login() {
     [busy, setBusy] = useState(false),
     [err, setErr] = useState("");
   useEffect(() => {
-    if (user) n("/dashboard", { replace: true });
+    if (user) n(homeForRole(user.role), { replace: true });
   }, [user]);
   const submit = async (e) => {
     e.preventDefault();
@@ -175,7 +186,7 @@ function Login() {
     try {
       await signIn(email, password);
       toast("Signed in successfully");
-      n(loc.state?.from || "/dashboard", { replace: true });
+      n(loc.state?.from || homeForRole(user.role), { replace: true });
     } catch (e) {
       setErr(message(e));
     } finally {
@@ -330,38 +341,13 @@ function Shell() {
     };
   const allowed = (l) => {
     const roles = {
-      institutions: [
-        "ADMIN",
-        "VERIFICATION_OFFICIAL",
-        "APPROVING_AUTHORITY",
-        "REGULATION_OFFICIAL",
-      ],
-      verification: [
-        "ADMIN",
-        "VERIFICATION_OFFICIAL",
-        "APPROVING_AUTHORITY",
-        "REGULATION_OFFICIAL",
-      ],
-      monitoring: [
-        "ADMIN",
-        "VERIFICATION_OFFICIAL",
-        "APPROVING_AUTHORITY",
-        "REGULATION_OFFICIAL",
-      ],
-      renewals: [
-        "ADMIN",
-        "INSTITUTION",
-        "VERIFICATION_OFFICIAL",
-        "APPROVING_AUTHORITY",
-        "REGULATION_OFFICIAL",
-      ],
-      releases: [
-        "ADMIN",
-        "INSTITUTION",
-        "VERIFICATION_OFFICIAL",
-        "APPROVING_AUTHORITY",
-        "REGULATION_OFFICIAL",
-      ],
+      dashboard: ["ADMIN", "INSTITUTION", "VERIFICATION_OFFICIAL", "REGULATION_OFFICIAL"],
+      fdrs: ["ADMIN", "INSTITUTION", "VERIFICATION_OFFICIAL", "REGULATION_OFFICIAL"],
+      institutions: ["ADMIN", "VERIFICATION_OFFICIAL", "REGULATION_OFFICIAL"],
+      verification: ["ADMIN", "VERIFICATION_OFFICIAL", "REGULATION_OFFICIAL"],
+      monitoring: ["ADMIN", "INSTITUTION", "VERIFICATION_OFFICIAL", "REGULATION_OFFICIAL"],
+      renewals: ["ADMIN", "INSTITUTION", "APPROVING_AUTHORITY", "REGULATION_OFFICIAL"],
+      releases: ["ADMIN", "INSTITUTION", "APPROVING_AUTHORITY", "REGULATION_OFFICIAL"],
       users: ["ADMIN"],
       reports: ["ADMIN", "REGULATION_OFFICIAL"],
     };
@@ -390,12 +376,13 @@ function Shell() {
           <span className="live-dot" /> {!collapsed && "REGULATORY WORKSPACE"}
         </div>
         <nav>
-          {navGroups.map((g) => (
+          {navGroups
+            .map((g) => ({ ...g, links: g.links.filter(([p]) => allowed(p.slice(1))) }))
+            .filter((g) => g.links.length > 0)
+            .map((g) => (
             <div className="nav-group" key={g.title}>
               <small>{!collapsed && g.title}</small>
-              {g.links
-                .filter(([p]) => allowed(p.slice(1)))
-                .map(([path, label, Icon]) => (
+              {g.links.map(([path, label, Icon]) => (
                   <NavLink
                     to={path}
                     key={path}
@@ -463,13 +450,15 @@ function Shell() {
             <Menu size={18} />
           </button>
           <div className="top-spacer" />
-          <button
-            className="icon-btn notification-trigger"
-            onClick={() => setNotif(!notif)}
-            aria-label="Notifications"
-          >
-            <Bell size={19} />
-          </button>
+          {user.role !== "APPROVING_AUTHORITY" && (
+            <button
+              className="icon-btn notification-trigger"
+              onClick={() => setNotif(!notif)}
+              aria-label="Notifications"
+            >
+              <Bell size={19} />
+            </button>
+          )}
           <div className="user-chip">
             <span className="avatar">
               {user.email?.slice(0, 1).toUpperCase()}
@@ -480,7 +469,7 @@ function Shell() {
             </span>
             <ChevronDown size={15} />
           </div>
-          {notif && (
+          {notif && user.role !== "APPROVING_AUTHORITY" && (
             <div className="quick-pop">
               <h4>Notifications</h4>
               <p>
@@ -495,9 +484,9 @@ function Shell() {
         </header>
         <main className="main-content">
           <Routes>
-            <Route path="/" element={<NavigateToLogin to="/dashboard" />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/fdrs" element={<FdrList />} />
+            <Route path="/" element={<RoleHome />} />
+            <Route path="/dashboard" element={<Protected roles={["ADMIN", "INSTITUTION", "VERIFICATION_OFFICIAL", "REGULATION_OFFICIAL"]}><Dashboard /></Protected>} />
+            <Route path="/fdrs" element={<Protected roles={["ADMIN", "INSTITUTION", "VERIFICATION_OFFICIAL", "REGULATION_OFFICIAL"]}><FdrList /></Protected>} />
             <Route
               path="/fdrs/new"
               element={
@@ -506,7 +495,7 @@ function Shell() {
                 </Protected>
               }
             />
-            <Route path="/fdrs/:id" element={<FdrDetail />} />
+            <Route path="/fdrs/:id" element={<Protected roles={["ADMIN", "INSTITUTION", "VERIFICATION_OFFICIAL", "REGULATION_OFFICIAL"]}><FdrDetail /></Protected>} />
             <Route
               path="/institutions"
               element={
@@ -514,7 +503,6 @@ function Shell() {
                   roles={[
                     "ADMIN",
                     "VERIFICATION_OFFICIAL",
-                    "APPROVING_AUTHORITY",
                     "REGULATION_OFFICIAL",
                   ]}
                 >
@@ -561,8 +549,8 @@ function Shell() {
                 </Protected>
               }
             />
-            <Route path="/renewals" element={<Workflow kind="renewal" />} />
-            <Route path="/releases" element={<Workflow kind="release" />} />
+            <Route path="/renewals" element={<Protected roles={["ADMIN", "INSTITUTION", "APPROVING_AUTHORITY", "REGULATION_OFFICIAL"]}><Workflow kind="renewal" /></Protected>} />
+            <Route path="/releases" element={<Protected roles={["ADMIN", "INSTITUTION", "APPROVING_AUTHORITY", "REGULATION_OFFICIAL"]}><Workflow kind="release" /></Protected>} />
             <Route
               path="/users"
               element={
@@ -579,7 +567,7 @@ function Shell() {
                 </Protected>
               }
             />
-            <Route path="*" element={<Dashboard />} />
+            <Route path="*" element={<RoleHome />} />
           </Routes>
         </main>
         <footer className="app-footer">
@@ -2595,36 +2583,55 @@ function Workflow({ kind }) {
     [q, setQ] = useState(""),
     [busy, setBusy] = useState(null),
     [modal, setModal] = useState(null);
+  const { user } = roles;
+  const approvalQueue = user.role === "APPROVING_AUTHORITY" || user.role === "ADMIN";
   const refresh = () => {
     setLoading(true);
-    api
-      .get(base, { params: { size: 100, sort: "submittedAt,desc" } })
-      .then(async (r) => {
-        const fs = r.data.content || [],
-          arr = [];
-        for (let i = 0; i < fs.length; i += 5) {
-          const group = await Promise.all(
-            fs.slice(i, i + 5).map(async (f) => {
-              try {
-                const x = await (renewal
-                  ? workflowApi.listRenewals(f.id)
-                  : workflowApi.listReleases(f.id));
-                return (x.data || []).map((y) => ({
-                  ...y,
-                  fdrId: f.id,
-                  reference: f.instrumentReference,
-                  institution: f.institutionName,
-                  amount: f.depositAmount,
-                  maturityDate: f.maturityDate,
-                }));
-              } catch (e) {
-                if (e.response?.status === 403) return [];
-                throw e;
-              }
-            }),
-          );
-          arr.push(...group.flat());
-        }
+    const request = approvalQueue
+      ? api.get(renewal ? "/renewals" : "/release-requests").then((r) =>
+          (r.data || []).map((y) => ({
+            ...y,
+            fdrId: renewal ? y.originalFdrId : y.fdrId,
+            reference: renewal ? y.originalReference : y.instrumentReference,
+            institution: y.institutionName || "Institution",
+            amount: y.depositAmount,
+            maturityDate: y.maturityDate,
+            submittedAt: y.createdAt || y.requestedAt,
+            reason: y.reason,
+          })),
+        )
+      : api
+          .get(base, { params: { size: 100, sort: "submittedAt,desc" } })
+          .then(async (r) => {
+            const fs = r.data.content || [];
+            const arr = [];
+            for (let i = 0; i < fs.length; i += 5) {
+              const group = await Promise.all(
+                fs.slice(i, i + 5).map(async (f) => {
+                  try {
+                    const x = await (renewal
+                      ? workflowApi.listRenewals(f.id)
+                      : workflowApi.listReleases(f.id));
+                    return (x.data || []).map((y) => ({
+                      ...y,
+                      fdrId: f.id,
+                      reference: f.instrumentReference,
+                      institution: f.institutionName,
+                      amount: f.depositAmount,
+                      maturityDate: f.maturityDate,
+                    }));
+                  } catch (e) {
+                    if (e.response?.status === 403) return [];
+                    throw e;
+                  }
+                }),
+              );
+              arr.push(...group.flat());
+            }
+            return arr;
+          });
+    request
+      .then((arr) => {
         setRows(arr);
         setError(null);
       })
@@ -2634,13 +2641,7 @@ function Workflow({ kind }) {
   useEffect(() => {
     refresh();
   }, [kind]);
-  const { user } = roles;
-  const authReview = [
-    "ADMIN",
-    "VERIFICATION_OFFICIAL",
-    "APPROVING_AUTHORITY",
-    "REGULATION_OFFICIAL",
-  ].includes(user.role);
+  const authReview = ["ADMIN", "APPROVING_AUTHORITY"].includes(user.role);
   const review = async (action) => {
     setBusy(modal.item.id);
     try {
@@ -2739,10 +2740,17 @@ function Workflow({ kind }) {
                       </small>
                     </td>
                     <td>
-                      <Link className="strong-link" to={`/fdrs/${r.fdrId}`}>
-                        {r.reference}
-                      </Link>
+                      {approvalQueue ? (
+                        <span className="strong-link">{r.reference || r.originalReference || r.instrumentReference}</span>
+                      ) : (
+                        <Link className="strong-link" to={`/fdrs/${r.fdrId}`}>
+                          {r.reference}
+                        </Link>
+                      )}
                       <small>{r.institution}</small>
+                      {renewal && r.replacementReference && (
+                        <small>Replacement · {r.replacementReference}</small>
+                      )}
                     </td>
                     <td className="amount">{money(r.amount)}</td>
                     <td>{date(r.maturityDate)}</td>
@@ -2769,6 +2777,8 @@ function Workflow({ kind }) {
                         >
                           Review
                         </button>
+                      ) : approvalQueue ? (
+                        <span className="muted">No action available</span>
                       ) : (
                         <Link className="text-btn" to={`/fdrs/${r.fdrId}`}>
                           Open <ArrowRight size={13} />
@@ -2852,15 +2862,11 @@ function Workflow({ kind }) {
   );
 }
 function actionFor(status, renewal, role) {
-  const approve = role === "ADMIN" || role === "APPROVING_AUTHORITY",
-    verifier =
-      role === "ADMIN" ||
-      role === "VERIFICATION_OFFICIAL" ||
-      role === "REGULATION_OFFICIAL";
-  if (status === "SUBMITTED" && verifier) return ["UNDER_REVIEW"];
-  if (status === "UNDER_REVIEW" && approve)
-    return renewal ? ["APPROVED", "REJECTED"] : ["APPROVED", "REJECTED"];
-  if (!renewal && status === "APPROVED" && approve) return ["COMPLETED"];
+  const approver = role === "ADMIN" || role === "APPROVING_AUTHORITY";
+  if (!approver) return [];
+  if (status === "SUBMITTED") return ["UNDER_REVIEW"];
+  if (status === "UNDER_REVIEW") return ["APPROVED", "REJECTED"];
+  if (!renewal && status === "APPROVED") return ["COMPLETED"];
   return [];
 }
 function UsersPage() {
