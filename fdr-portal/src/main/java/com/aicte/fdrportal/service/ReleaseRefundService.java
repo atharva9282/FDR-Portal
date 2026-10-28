@@ -116,7 +116,7 @@ public class ReleaseRefundService {
 
         UserAccount actor = accessService.currentUser();
         requireRole(actor, UserRole.ADMIN, UserRole.INSTITUTION,
-                UserRole.APPROVING_AUTHORITY, UserRole.REGULATION_OFFICIAL);
+                UserRole.REGULATION_OFFICIAL);
         accessService.assertCanAccessFdr(fdr);
 
         return requestRepository
