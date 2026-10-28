@@ -2703,8 +2703,7 @@ function Workflow({ kind }) {
           />
         </div>
         <span className="records-note">
-          {rows?.length ?? "—"} requests · collected from per-instrument
-          histories
+          {rows?.length ?? "—"} requests · {approvalQueue ? "request-only approval queue" : "collected from FDR histories"}
         </span>
       </div>
       <Panel
