@@ -2708,7 +2708,7 @@ function Workflow({ kind }) {
       </div>
       <Panel
         title={renewal ? "Replacement requests" : "Release requests"}
-        sub="Live records aggregated from the backend request histories"
+        sub={approvalQueue ? "Request details are scoped to renewal and release decisions." : "Live records aggregated from authorized FDR request histories"}
         className="table-panel"
       >
         {error ? (
