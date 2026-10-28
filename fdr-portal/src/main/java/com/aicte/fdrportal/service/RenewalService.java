@@ -153,12 +153,25 @@ public class RenewalService {
     }
 
     @Transactional(readOnly = true)
+    public List<RenewalResponse> findAllForApprovalQueue() {
+        UserAccount actor = accessService.currentUser();
+        requireRole(actor, UserRole.ADMIN, UserRole.APPROVING_AUTHORITY);
+        return renewalRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<RenewalResponse> findByOriginalFdrId(Long originalFdrId) {
 
         FdrInstrument original = fdrRepository.findById(originalFdrId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Original FDR not found: " + originalFdrId));
 
+        UserAccount actor = accessService.currentUser();
+        requireRole(actor, UserRole.ADMIN, UserRole.INSTITUTION,
+                UserRole.APPROVING_AUTHORITY, UserRole.REGULATION_OFFICIAL);
         accessService.assertCanAccessFdr(original);
 
         return renewalRepository
@@ -193,8 +206,7 @@ public class RenewalService {
             requireRole(
                     actor,
                     UserRole.ADMIN,
-                    UserRole.VERIFICATION_OFFICIAL,
-                    UserRole.REGULATION_OFFICIAL
+                    UserRole.APPROVING_AUTHORITY
             );
 
             if (record.getStatus() != RenewalRequestStatus.SUBMITTED) {
@@ -297,6 +309,9 @@ public class RenewalService {
                 record.getOriginalFdr().getInstrumentReference(),
                 record.getReplacementFdr().getId(),
                 record.getReplacementFdr().getInstrumentReference(),
+                record.getOriginalFdr().getInstitution().getName(),
+                record.getOriginalFdr().getDepositAmount(),
+                record.getOriginalFdr().getMaturityDate(),
                 record.getStatus(),
                 record.getSubmittedBy(),
                 record.getReviewedBy(),
