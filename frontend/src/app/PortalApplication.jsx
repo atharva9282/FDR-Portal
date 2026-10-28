@@ -526,7 +526,6 @@ function Shell() {
                     "ADMIN",
                     "INSTITUTION",
                     "VERIFICATION_OFFICIAL",
-                    "APPROVING_AUTHORITY",
                     "REGULATION_OFFICIAL",
                   ]}
                 >
@@ -541,7 +540,6 @@ function Shell() {
                   roles={[
                     "ADMIN",
                     "VERIFICATION_OFFICIAL",
-                    "APPROVING_AUTHORITY",
                     "REGULATION_OFFICIAL",
                   ]}
                 >
