@@ -2595,10 +2595,10 @@ function Workflow({ kind }) {
             fdrId: renewal ? y.originalFdrId : y.fdrId,
             reference: renewal ? y.originalReference : y.instrumentReference,
             institution: y.institutionName || "Institution",
-            amount: y.depositAmount,
-            maturityDate: y.maturityDate,
+            amount: renewal ? y.replacementDepositAmount : y.depositAmount,
+            maturityDate: renewal ? y.replacementMaturityDate : y.maturityDate,
             submittedAt: y.createdAt || y.requestedAt,
-            reason: y.reason,
+            reason: renewal ? y.remarks : y.reason,
           })),
         )
       : api
@@ -2750,7 +2750,11 @@ function Workflow({ kind }) {
                       )}
                       <small>{r.institution}</small>
                       {renewal && r.replacementReference && (
-                        <small>Replacement · {r.replacementReference}</small>
+                        <small>
+                          Replacement · {r.replacementReference}
+                          {r.replacementBankName ? ` · ${r.replacementBankName}` : ""}
+                          {r.replacementBranchName ? ` · ${r.replacementBranchName}` : ""}
+                        </small>
                       )}
                     </td>
                     <td className="amount">{money(r.amount)}</td>
