@@ -15,6 +15,8 @@ public interface RenewalRecordRepository
             Long originalFdrId
     );
 
+    List<RenewalRecord> findAllByOrderByCreatedAtDesc();
+
     boolean existsByOriginalFdr_IdAndStatusIn(
             Long originalFdrId,
             Collection<RenewalRequestStatus> statuses
