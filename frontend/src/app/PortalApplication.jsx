@@ -119,8 +119,8 @@ function Protected({ children, roles }) {
           <Shield size={25} />
           <h2>Access restricted</h2>
           <p>This workspace is available to authorized roles only.</p>
-          <Link to="/dashboard" className="btn primary">
-            Back to dashboard
+          <Link to={homeForRole(user.role)} className="btn primary">
+            Back to your workspace
           </Link>
         </div>
       </div>
@@ -1599,12 +1599,16 @@ function FdrDetail() {
       [id, user.role],
     ),
     { data: renewals } = useLoad(
-      () => fdrApi.renewals(id).then((r) => r.data),
-      [id],
+      () => user.role === "VERIFICATION_OFFICIAL"
+        ? Promise.resolve([])
+        : fdrApi.renewals(id).then((r) => r.data),
+      [id, user.role],
     ),
     { data: releases } = useLoad(
-      () => fdrApi.releases(id).then((r) => r.data),
-      [id],
+      () => user.role === "VERIFICATION_OFFICIAL"
+        ? Promise.resolve([])
+        : fdrApi.releases(id).then((r) => r.data),
+      [id, user.role],
     );
   const refreshDocuments = async () => {
     const response = await fdrApi.documents(id);
@@ -1691,8 +1695,7 @@ function FdrDetail() {
           "Overview",
           "Documents",
           "Verification",
-          "Renewal history",
-          "Release requests",
+          ...(user.role === "VERIFICATION_OFFICIAL" ? [] : ["Renewal history", "Release requests"]),
         ].map((t) => (
           <button
             className={tab === t ? "selected" : ""}
